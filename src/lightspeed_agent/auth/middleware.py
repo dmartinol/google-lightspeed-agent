@@ -109,13 +109,35 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         try:
             introspector = get_token_introspector()
             user = await introspector.validate_token(token)
+            order_id = user.metadata.get("order_id")
+
+            if not order_id:
+                logger.warning("Missing order_id in token metadata for user %s", user.user_id)
+                return self._forbidden_response(
+                    "Missing order context in access token"
+                )
+
+            if not await self._is_authorized_for_order(
+                order_id=order_id,
+                client_id=user.client_id,
+            ):
+                logger.warning(
+                    "Order authorization failed for user=%s client_id=%s order_id=%s",
+                    user.user_id,
+                    user.client_id,
+                    order_id,
+                )
+                return self._forbidden_response(
+                    "Access token is not authorized for the requested order"
+                )
+
             # Store user in request state for access in handlers
             request.state.user = user
             request.state.access_token = token
-            request.state.order_id = user.metadata.get("order_id")
+            request.state.order_id = order_id
             # Make token available to downstream services (MCP header provider)
             _request_access_token.set((token, user.token_exp))
-            _request_order_id.set(user.metadata.get("order_id"))
+            _request_order_id.set(order_id)
             logger.debug("Authenticated user: %s", user.user_id)
         except InsufficientScopeError as e:
             logger.warning("Insufficient scope: %s", e)
@@ -166,6 +188,61 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             if order_id:
                 _request_order_id.set(order_id)
             logger.debug("Extracted Bearer token for pass-through (validation skipped)")
+
+    async def _is_authorized_for_order(self, *, order_id: str, client_id: str) -> bool:
+        """Validate that client_id is authorized for an active order_id.
+
+        Checks:
+        1. The entitlement/order exists and is active.
+        2. The DCR client mapped to the order matches the token's client_id.
+        """
+        if not client_id:
+            logger.warning("Token missing client_id while validating order %s", order_id)
+            return False
+
+        try:
+            from lightspeed_agent.dcr.repository import get_dcr_client_repository
+            from lightspeed_agent.marketplace.models import EntitlementState
+            from lightspeed_agent.marketplace.repository import get_entitlement_repository
+
+            entitlement_repo = get_entitlement_repository()
+            dcr_repo = get_dcr_client_repository()
+
+            entitlement = await entitlement_repo.get(order_id)
+            if not entitlement:
+                logger.warning("Order not found during auth validation: %s", order_id)
+                return False
+            if entitlement.state != EntitlementState.ACTIVE:
+                logger.warning(
+                    "Order is not active during auth validation: %s (state=%s)",
+                    order_id,
+                    entitlement.state,
+                )
+                return False
+
+            registered_client = await dcr_repo.get_by_order_id(order_id)
+            if not registered_client:
+                logger.warning("No DCR client mapped to order: %s", order_id)
+                return False
+
+            if registered_client.client_id != client_id:
+                logger.warning(
+                    "Client/order mismatch: token client_id=%s order_id=%s mapped_client_id=%s",
+                    client_id,
+                    order_id,
+                    registered_client.client_id,
+                )
+                return False
+
+            return True
+        except Exception as e:
+            logger.exception(
+                "Order authorization check failed for order_id=%s client_id=%s: %s",
+                order_id,
+                client_id,
+                e,
+            )
+            return False
 
     def _unauthorized_response(self, detail: str) -> JSONResponse:
         """Build 401 Unauthorized response."""

@@ -35,7 +35,6 @@ class OrderUsage:
 
 # Per-order usage tracker (source of truth)
 _usage_by_order: dict[str, OrderUsage] = {}
-UNKNOWN_ORDER_ID = "unknown"
 
 
 def get_usage_by_order() -> dict[str, dict]:
@@ -46,13 +45,13 @@ def get_usage_by_order() -> dict[str, dict]:
 def get_order_usage(order_id: str) -> OrderUsage:
     """Get usage statistics for a specific order_id."""
     if not order_id:
-        order_id = UNKNOWN_ORDER_ID
+        return OrderUsage()
     return _usage_by_order.get(order_id, OrderUsage())
 
 
-def _resolve_order_id() -> str:
+def _resolve_order_id() -> str | None:
     """Resolve the current request order_id from request context."""
-    return get_request_order_id() or UNKNOWN_ORDER_ID
+    return get_request_order_id()
 
 
 class UsageTrackingPlugin(BasePlugin):
@@ -71,6 +70,9 @@ class UsageTrackingPlugin(BasePlugin):
     async def before_run_callback(self, *, invocation_context) -> None:
         """Track request count at start of each run."""
         order_id = _resolve_order_id()
+        if not order_id:
+            logger.error("Missing order_id in request context; skipping request metering")
+            return None
         order_usage = _usage_by_order.setdefault(order_id, OrderUsage())
         order_usage.total_requests += 1
         logger.debug(
@@ -89,6 +91,9 @@ class UsageTrackingPlugin(BasePlugin):
         """Track token usage from LLM responses."""
         if llm_response.usage_metadata:
             order_id = _resolve_order_id()
+            if not order_id:
+                logger.error("Missing order_id in request context; skipping token metering")
+                return None
             usage = llm_response.usage_metadata
             input_tokens = getattr(usage, "prompt_token_count", 0) or 0
             output_tokens = getattr(usage, "candidates_token_count", 0) or 0
@@ -115,6 +120,9 @@ class UsageTrackingPlugin(BasePlugin):
     ) -> Optional[dict]:
         """Track tool/MCP calls."""
         order_id = _resolve_order_id()
+        if not order_id:
+            logger.error("Missing order_id in request context; skipping tool metering")
+            return None
         order_usage = _usage_by_order.setdefault(order_id, OrderUsage())
         order_usage.total_tool_calls += 1
         tool_name = getattr(tool, "name", type(tool).__name__)
