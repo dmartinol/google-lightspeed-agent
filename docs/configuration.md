@@ -179,16 +179,22 @@ See [Authentication - DCR](authentication.md#dynamic-client-registration-dcr) fo
 
 ### Rate Limiting
 
-Rate limiting uses in-memory sliding window algorithm. No external dependencies required.
+Rate limiting uses a Redis-backed sliding window algorithm for distributed deployments.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `RATE_LIMIT_REDIS_URL` | `redis://localhost:6379/0` | Redis URL used for rate limiting |
+| `RATE_LIMIT_REDIS_TIMEOUT_MS` | `200` | Redis operation timeout in milliseconds |
+| `RATE_LIMIT_KEY_PREFIX` | `lightspeed:ratelimit` | Prefix for Redis rate limit keys |
 | `RATE_LIMIT_REQUESTS_PER_MINUTE` | `60` | Max requests per minute |
 | `RATE_LIMIT_REQUESTS_PER_HOUR` | `1000` | Max requests per hour |
 
 **Example:**
 
 ```bash
+RATE_LIMIT_REDIS_URL=redis://localhost:6379/0
+RATE_LIMIT_REDIS_TIMEOUT_MS=200
+RATE_LIMIT_KEY_PREFIX=lightspeed:ratelimit
 RATE_LIMIT_REQUESTS_PER_MINUTE=120
 RATE_LIMIT_REQUESTS_PER_HOUR=2000
 ```

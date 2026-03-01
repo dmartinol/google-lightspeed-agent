@@ -235,24 +235,28 @@ Usage is reported:
 
 ### Rate Limit Enforcement
 
-Rate limits are enforced using an in-memory sliding window algorithm:
+Rate limits are enforced using a Redis-backed sliding window algorithm:
 
 ```python
-async def check_rate_limit(client_id: str) -> bool:
-    # Get subscription tier for client
-    tier = await get_subscription_tier(client_id)
+# Pseudocode for current middleware behavior
+async def enforce_rate_limit(request):
+    # Build principal dimensions from auth context
+    principals = []
+    if request.state.order_id:
+        principals.append(f"order:{request.state.order_id}")
+    if request.state.user and request.state.user.user_id:
+        principals.append(f"user:{request.state.user.user_id}")
+    elif request.state.user and request.state.user.client_id:
+        principals.append(f"client:{request.state.user.client_id}")
+    if not principals:
+        principals.append(f"ip:{request.client.host}")
 
-    # Get tier limits
-    limits = TIER_LIMITS[tier]
+    # Atomically evaluate all dimensions in Redis + Lua
+    allowed, status = await redis_rate_limiter.is_allowed(principal_keys=principals)
+    if not allowed:
+        return HTTP_429(status)
 
-    # Check against in-memory sliding window counters
-    limiter = get_rate_limiter()
-    allowed, info = limiter.check_limit(
-        client_id,
-        limits["requests_per_minute"]
-    )
-
-    return allowed
+    return continue_request()
 ```
 
 See [Rate Limiting](rate-limiting.md) for details on the sliding window algorithm.

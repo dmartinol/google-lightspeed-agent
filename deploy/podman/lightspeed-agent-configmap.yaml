@@ -48,7 +48,11 @@ data:
   SESSION_DB_HOST: "localhost"
   SESSION_DB_PORT: "5433"
 
-  # Rate Limiting Configuration (in-memory, no Redis required)
+  # Rate Limiting Configuration (Redis-backed)
+  # Use host.containers.internal when running Redis on the host.
+  RATE_LIMIT_REDIS_URL: "redis://host.containers.internal:6379/0"
+  RATE_LIMIT_REDIS_TIMEOUT_MS: "200"
+  RATE_LIMIT_KEY_PREFIX: "lightspeed:ratelimit"
   RATE_LIMIT_REQUESTS_PER_MINUTE: "60"
   RATE_LIMIT_REQUESTS_PER_HOUR: "1000"
 

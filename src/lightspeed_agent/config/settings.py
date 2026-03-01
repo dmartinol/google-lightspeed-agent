@@ -126,7 +126,7 @@ class Settings(BaseSettings):
         description="Max unreported periods to process per backfill run",
     )
 
-    # Rate Limiting (in-memory, no Redis required)
+    # Rate Limiting (Redis-backed)
     rate_limit_requests_per_minute: int = Field(
         default=60,
         description="Global requests per minute limit",
@@ -134,6 +134,18 @@ class Settings(BaseSettings):
     rate_limit_requests_per_hour: int = Field(
         default=1000,
         description="Global requests per hour limit",
+    )
+    rate_limit_redis_url: str = Field(
+        default="redis://localhost:6379/0",
+        description="Redis URL for distributed rate limiting",
+    )
+    rate_limit_redis_timeout_ms: int = Field(
+        default=200,
+        description="Redis operation timeout in milliseconds",
+    )
+    rate_limit_key_prefix: str = Field(
+        default="lightspeed:ratelimit",
+        description="Redis key prefix for rate limiting data",
     )
 
     # Logging

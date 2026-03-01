@@ -19,7 +19,7 @@ from lightspeed_agent.api.a2a.agent_card import get_agent_card_dict
 from lightspeed_agent.auth import AuthenticationMiddleware
 from lightspeed_agent.config import get_settings
 from lightspeed_agent.metering import get_usage_repository
-from lightspeed_agent.ratelimit import RateLimitMiddleware
+from lightspeed_agent.ratelimit import RateLimitMiddleware, get_redis_rate_limiter
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +28,14 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Application lifespan manager for startup/shutdown events."""
     settings = get_settings()
+
+    # Startup: Verify Redis connectivity for rate limiting
+    try:
+        await get_redis_rate_limiter().verify_connection()
+        logger.info("Rate limiter Redis backend is reachable")
+    except Exception as e:
+        logger.error("Rate limiter Redis backend is unavailable: %s", e)
+        raise
 
     # Startup: Initialize database
     try:
@@ -75,6 +83,12 @@ async def lifespan(app: FastAPI):
         await close_database()
     except Exception as e:
         logger.error("Failed to close database: %s", e)
+
+    # Shutdown: Close Redis connection used by rate limiter
+    try:
+        await get_redis_rate_limiter().close()
+    except Exception as e:
+        logger.error("Failed to close rate limiter Redis connection: %s", e)
 
 
 def create_app() -> FastAPI:

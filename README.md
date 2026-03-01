@@ -246,7 +246,8 @@ lightspeed_agent/
 │   │   ├── marketplace-handler.yaml  # Handler service config
 │   │   └── deploy.sh              # Deploy script (--service all|handler|agent)
 │   └── podman/             # Podman/Kubernetes deployment
-│       ├── marketplace-handler-pod.yaml  # Handler pod (start first)
+│       ├── redis-pod.yaml                # Redis pod for rate limiting (start first)
+│       ├── marketplace-handler-pod.yaml  # Handler pod (start after Redis)
 │       ├── lightspeed-agent-pod.yaml       # Agent pod
 │       ├── lightspeed-agent-configmap.yaml
 │       └── lightspeed-agent-secret.yaml
@@ -285,13 +286,16 @@ Comprehensive documentation is available in the [docs/](docs/) directory:
 
 ## Container Deployment (Podman)
 
-The system is deployed as **two separate pods**, each with its own PostgreSQL database:
+The system is deployed as **three separate pods**:
 
-1. **Marketplace Handler Pod** (start first):
+1. **Redis Pod** (start first):
+   - **redis**: Shared rate limiter backend for all agent replicas
+
+2. **Marketplace Handler Pod** (start after Redis):
    - **marketplace-handler**: Handles Pub/Sub events and DCR requests
    - **postgres**: PostgreSQL database for marketplace data (orders, entitlements, DCR clients)
 
-2. **Lightspeed Agent Pod** (start after handler):
+3. **Lightspeed Agent Pod** (start after handler):
    - **lightspeed-agent**: Main A2A agent (Gemini + Google ADK)
    - **insights-mcp**: Red Hat Lightspeed MCP server
    - **session-postgres**: PostgreSQL database for agent sessions (ADK session persistence)
@@ -368,12 +372,15 @@ podman build -t localhost/a2a-inspector:latest /tmp/a2a-inspector
 # First, deploy the secrets (creates a Kubernetes Secret in podman)
 podman kube play deploy/podman/my-secrets.yaml
 
-# Start the marketplace handler FIRST (contains PostgreSQL)
+# Start Redis FIRST (required for rate limiting)
+podman kube play deploy/podman/redis-pod.yaml
+
+# Start the marketplace handler SECOND (contains PostgreSQL)
 podman kube play \
   --configmap deploy/podman/lightspeed-agent-configmap.yaml \
   deploy/podman/marketplace-handler-pod.yaml
 
-# Then start the agent pod (connects to handler's PostgreSQL)
+# Then start the agent pod (connects to handler's PostgreSQL and Redis)
 podman kube play \
   --configmap deploy/podman/lightspeed-agent-configmap.yaml \
   deploy/podman/lightspeed-agent-pod.yaml
@@ -382,6 +389,7 @@ podman kube play \
 podman pod ps
 
 # View container logs
+podman logs lightspeed-redis-redis                     # Redis logs
 podman logs marketplace-handler-marketplace-handler  # Handler logs
 podman logs marketplace-handler-postgres             # Marketplace PostgreSQL logs
 podman logs lightspeed-agent-pod-lightspeed-agent        # Agent logs
@@ -391,6 +399,7 @@ podman logs lightspeed-agent-pod-session-postgres      # Session PostgreSQL logs
 # Stop and remove all resources (reverse order)
 podman kube down deploy/podman/lightspeed-agent-pod.yaml
 podman kube down deploy/podman/marketplace-handler-pod.yaml
+podman kube down deploy/podman/redis-pod.yaml
 podman kube down deploy/podman/my-secrets.yaml
 ```
 
@@ -412,6 +421,42 @@ podman kube down deploy/podman/my-secrets.yaml
 | AgentCard | http://localhost:8000/.well-known/agent.json | A2A discovery |
 | MCP Server | http://localhost:8081 | MCP server (internal) |
 | A2A Inspector | http://localhost:8080 | Web UI for agent interaction |
+
+**Redis:**
+
+| Service | URL | Description |
+|---------|-----|-------------|
+| Redis | redis://localhost:6379 | Rate limiter backend |
+
+### Validate Rate Limiting (Burst Test)
+
+Use this quick test to confirm throttling behavior and inspect Redis keys.
+
+> **Note:** For local testing without OAuth tokens, set `SKIP_JWT_VALIDATION: "true"` in `deploy/podman/lightspeed-agent-configmap.yaml` and restart the agent pod.
+
+```bash
+# Send 70 requests quickly (default minute limit is 60)
+for i in {1..70}; do
+  code=$(curl -s -o /tmp/resp.json -w "%{http_code}" \
+    -X POST http://localhost:8000/ \
+    -H "Content-Type: application/json" \
+    -d '{"jsonrpc":"2.0","method":"message/send","id":"'$i'","params":{"message":{"role":"user","parts":[{"type":"text","text":"test"}]}}}')
+  echo "$i -> $code"
+done
+
+# Inspect 429 details and headers
+curl -i -X POST http://localhost:8000/ \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"message/send","id":"x","params":{"message":{"role":"user","parts":[{"type":"text","text":"test"}]}}}'
+
+# Inspect Redis rate-limit keys
+podman exec -it lightspeed-redis-redis redis-cli KEYS "lightspeed:ratelimit:*"
+```
+
+Expected result:
+- Requests `1..60` succeed, and `61+` return `429`
+- `429` responses include `Retry-After`, `X-RateLimit-Limit`, and `X-RateLimit-Remaining`
+- Redis shows `:m` and `:h` keys for the resolved principal (e.g., `ip:...`, `order:...`, `user:...`)
 
 ### Using the A2A Inspector (Web UI)
 
@@ -758,6 +803,12 @@ The test script at `scripts/test_dcr.py` is configurable via environment variabl
 The script sends two identical requests to verify idempotency — per Google's DCR spec, the handler must return the same `client_id`/`client_secret` for the same order. When `TEST_CLIENT_ID` and `TEST_CLIENT_SECRET` are set, the script includes them in the request body for static credentials mode.
 
 ### Pod Services
+
+**Redis Pod:**
+
+| Container | Port | Description |
+|-----------|------|-------------|
+| redis | 6379 | Shared Redis backend for rate limiting |
 
 **Marketplace Handler Pod:**
 

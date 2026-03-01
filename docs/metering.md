@@ -201,24 +201,31 @@ curl http://localhost:8000/usage
 
 ## Rate Limiting
 
-The agent includes a separate in-memory rate limiter that works independently from usage tracking.
+The agent includes a separate Redis-backed rate limiter that works independently from usage tracking.
 
 ### Configuration
 
 ```bash
 # Environment variables
+RATE_LIMIT_REDIS_URL=redis://localhost:6379/0
+RATE_LIMIT_REDIS_TIMEOUT_MS=200
+RATE_LIMIT_KEY_PREFIX=lightspeed:ratelimit
 RATE_LIMIT_REQUESTS_PER_MINUTE=60    # Max requests per minute
 RATE_LIMIT_REQUESTS_PER_HOUR=1000    # Max requests per hour
 ```
 
 ### How It Works
 
-The `RateLimitMiddleware` uses a sliding window algorithm:
+The `RateLimitMiddleware` uses an atomic Redis + Lua sliding window algorithm:
 
-1. Each request timestamp is recorded
-2. Old timestamps (> window size) are pruned
-3. Count is compared against configured limits
-4. If exceeded, returns HTTP 429 with `Retry-After` header
+1. Resolve principal dimensions for the request:
+   - `order_id` (if available)
+   - `user_id` (or `client_id` if `user_id` is missing) for authenticated requests
+   - client IP only when no authenticated principal is available
+2. For each principal dimension, remove expired timestamps from minute/hour Redis windows.
+3. Atomically evaluate limits across all dimensions in a single Redis Lua execution.
+4. If any dimension exceeds its limit, return HTTP `429` with `Retry-After`.
+5. If all dimensions pass, record the request in all relevant Redis windows.
 
 ### Rate Limited Paths
 

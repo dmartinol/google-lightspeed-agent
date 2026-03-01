@@ -1,0 +1,41 @@
+# Redis Pod Configuration (Podman Kube)
+#
+# Dedicated Redis pod used by the lightspeed-agent rate limiter.
+#
+# Usage:
+#   podman kube play deploy/podman/redis-pod.yaml
+#   podman kube down deploy/podman/redis-pod.yaml
+#
+apiVersion: v1
+kind: Pod
+metadata:
+  name: lightspeed-redis
+  labels:
+    app: lightspeed-redis
+    component: ratelimit
+spec:
+  restartPolicy: Always
+  containers:
+    - name: redis
+      image: docker.io/library/redis:7-alpine
+      args:
+        - "redis-server"
+        - "--appendonly"
+        - "yes"
+      ports:
+        - containerPort: 6379
+          hostPort: 6379
+      resources:
+        limits:
+          cpu: "0.5"
+          memory: 256Mi
+      volumeMounts:
+        - name: redis-data
+          mountPath: /data:Z
+  volumes:
+    - name: redis-data
+      emptyDir: {}
+      # Uncomment below and comment out emptyDir to persist Redis data between pod restarts
+      # hostPath:
+      #   path: ./data/redis-data
+      #   type: DirectoryOrCreate
