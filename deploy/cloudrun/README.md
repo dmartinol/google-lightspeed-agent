@@ -138,7 +138,8 @@ gcloud sql instances create $DB_INSTANCE_NAME \
   --edition=ENTERPRISE \
   --tier=db-g1-small \
   --region=$GOOGLE_CLOUD_LOCATION \
-  --project=$GOOGLE_CLOUD_PROJECT
+  --project=$GOOGLE_CLOUD_PROJECT \
+  --ssl-mode=ENCRYPTED_ONLY
 
 # Generate random passwords for database users
 MARKETPLACE_DB_PASSWORD=$(python3 -c "import secrets; print(secrets.token_urlsafe(24))")
