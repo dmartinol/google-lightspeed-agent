@@ -155,7 +155,6 @@ log_info "Setting up Secret Manager secrets..."
 
 # Required secrets
 secrets=(
-    "google-api-key"
     "redhat-sso-client-id"
     "redhat-sso-client-secret"
 )
@@ -308,9 +307,6 @@ echo "   gcloud sql databases create agent_sessions --instance=$DB_INSTANCE_NAME
 echo "   gcloud sql users create sessions --instance=$DB_INSTANCE_NAME --password=\$SESSION_DB_PASSWORD --project=$PROJECT_ID"
 echo ""
 echo "2. Update secrets with actual values:"
-echo ""
-echo "   # Google API Key (for Vertex AI / Gemini)"
-echo "   echo -n 'YOUR_API_KEY' | gcloud secrets versions add google-api-key --data-file=- --project=$PROJECT_ID"
 echo ""
 echo "   # Red Hat SSO credentials (for user authentication)"
 echo "   echo -n 'YOUR_SSO_CLIENT_ID' | gcloud secrets versions add redhat-sso-client-id --data-file=- --project=$PROJECT_ID"

@@ -305,7 +305,7 @@ Reference in Cloud Run:
 
 ```bash
 gcloud run deploy service-name \
-  --set-secrets="GOOGLE_API_KEY=google-api-key:latest"
+  --set-secrets="RED_HAT_SSO_CLIENT_SECRET=redhat-sso-client-secret:latest"
 ```
 
 ### Kubernetes

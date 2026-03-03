@@ -178,10 +178,6 @@ echo "Connection name: $CONNECTION_NAME"
 Update the placeholder secrets with actual values:
 
 ```bash
-# Google API Key (for Google AI Studio)
-echo -n 'your-google-api-key' | \
-  gcloud secrets versions add google-api-key --data-file=- --project=$GOOGLE_CLOUD_PROJECT
-
 # Red Hat SSO credentials
 echo -n 'your-sso-client-id' | \
   gcloud secrets versions add redhat-sso-client-id --data-file=- --project=$GOOGLE_CLOUD_PROJECT

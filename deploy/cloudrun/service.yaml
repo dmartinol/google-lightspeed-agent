@@ -92,11 +92,6 @@ spec:
             - name: MCP_READ_ONLY
               value: "true"
             # Secrets from Secret Manager
-            - name: GOOGLE_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: google-api-key
-                  key: latest
             # Lightspeed credentials (optional).
             # If set, the agent sends them to the MCP server as HTTP headers.
             # If not set, the agent forwards the caller's Bearer token instead.
