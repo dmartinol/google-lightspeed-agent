@@ -131,7 +131,7 @@ class UsageRecordModel(Base):
             "period_start",
             "period_end",
             unique=True,
-            postgresql_where=text("reported = false AND reporting_started_at IS NULL"),
+            postgresql_where=text("reported IS FALSE AND reporting_started_at IS NULL"),
             sqlite_where=text("reported = 0 AND reporting_started_at IS NULL"),
         ),
     )
