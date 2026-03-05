@@ -84,7 +84,7 @@ See [docs/architecture.md](docs/architecture.md) for detailed architecture docum
 
 ### Prerequisites
 
-- Python 3.11+
+- Python 3.12+
 - Google API key or Vertex AI access
 - Red Hat Insights service account credentials
 
@@ -106,7 +106,7 @@ See [docs/architecture.md](docs/architecture.md) for detailed architecture docum
 
 3. Install dependencies:
    ```bash
-   pip install -e ".[dev]"
+   pip install -e ".[agent]"
    ```
 
 4. Configure environment:

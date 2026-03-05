@@ -4,19 +4,19 @@
 # =============================================================================
 # Build Stage
 # =============================================================================
-FROM registry.access.redhat.com/ubi9/python-311:latest as builder
+FROM registry.access.redhat.com/ubi9/python-312-minimal:latest as builder
 
 WORKDIR /opt/app-root/src
 
 # Install Python dependencies
 COPY pyproject.toml README.md ./
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir .
+    pip install --no-cache-dir ".[agent]"
 
 # =============================================================================
 # Production Stage
 # =============================================================================
-FROM registry.access.redhat.com/ubi9/python-311:latest as production
+FROM registry.access.redhat.com/ubi9/python-312-minimal:latest as production
 
 # Labels for container metadata
 LABEL org.opencontainers.image.title="Red Hat Lightspeed Agent for Google Cloud"
@@ -29,7 +29,7 @@ LABEL io.k8s.description="A2A-ready agent for Red Hat Insights using Google ADK"
 WORKDIR /opt/app-root/src
 
 # Copy installed packages from builder
-COPY --from=builder /opt/app-root/lib/python3.11/site-packages /opt/app-root/lib/python3.11/site-packages
+COPY --from=builder /opt/app-root/lib/python3.12/site-packages /opt/app-root/lib/python3.12/site-packages
 
 # Copy application code
 COPY src/ ./src/
@@ -37,7 +37,7 @@ COPY agent.py ./
 COPY pyproject.toml README.md ./
 
 # Install the application
-RUN pip install --no-cache-dir -e .
+RUN pip install --no-cache-dir -e ".[agent]"
 
 # Create directory for data (if using SQLite)
 RUN mkdir -p /opt/app-root/src/data
