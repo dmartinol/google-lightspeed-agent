@@ -1,9 +1,10 @@
 """Application settings and configuration management."""
 
+import os
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -240,6 +241,21 @@ class Settings(BaseSettings):
         default=False,
         description="Skip JWT validation (development only)",
     )
+
+    @model_validator(mode="after")
+    def _block_skip_jwt_in_production(self) -> "Settings":
+        """Prevent SKIP_JWT_VALIDATION from being enabled in production.
+
+        Cloud Run sets K_SERVICE automatically. If that variable is present,
+        this is a managed deployment and JWT validation must never be skipped.
+        """
+        if self.skip_jwt_validation and os.getenv("K_SERVICE"):
+            raise ValueError(
+                "SKIP_JWT_VALIDATION=true is not allowed in Cloud Run "
+                f"(K_SERVICE={os.getenv('K_SERVICE')}). "
+                "This setting is intended for local development only."
+            )
+        return self
 
     # OpenTelemetry Configuration
     otel_enabled: bool = Field(
