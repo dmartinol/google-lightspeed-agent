@@ -16,8 +16,8 @@ through to authenticated API calls.
 | **Gemini Enterprise** | Google's AI platform that acts as the **OAuth 2.0 Client** |
 | **Red Hat SSO (Keycloak)** | The **OAuth 2.0 Authorization Server** that issues and validates tokens |
 | **Lightspeed Agent** | The **OAuth 2.0 Resource Server** that serves A2A requests |
-| **MCP Server** | Downstream tool server that provides access to Red Hat Lightspeed APIs |
-
+| **Agent (Marketplace Handler)** | Manages marketplace subscriptions, entitlements, and credential registration (DCR / static) |
+| **Red Hat Lightspeed MCP Server** | Downstream tool server that provides access to Red Hat Lightspeed APIs |
 ---
 
 ## Step 1 — Subscription (Entitlement Creation)
@@ -138,60 +138,96 @@ client credentials in Red Hat SSO and provide them during registration. This
 is the current default mode.
 
 ```
-Customer Admin          Google Card Form         Gemini Enterprise        Agent (Marketplace Handler)        Red Hat SSO
-     |                        |                        |                            |                           |
-     |-- Open agent card ---->|                        |                            |                           |
-     |                        |                        |                            |                           |
-     |   (Card displays       |                        |                            |                           |
-     |    client_id and       |                        |                            |                           |
-     |    client_secret       |                        |                            |                           |
-     |    fields to fill in)  |                        |                            |                           |
-     |                        |                        |                            |                           |
-     |-- Copy client_id and   |                        |                            |                           |
-     |   client_secret from   |                        |                            |                           |
-     |   Red Hat SSO ---------|----------------------->|                            |                           |
-     |                        |                        |                            |                           |
-     |                        |                        |-- POST /dcr                |                           |
-     |                        |                        |   { software_statement,    |                           |
-     |                        |                        |     client_id,             |                           |
-     |                        |                        |     client_secret } ------>|                           |
-     |                        |                        |                            |                           |
-     |                        |                        |                            |-- Validate Google JWT     |
-     |                        |                        |                            |-- Validate account/order  |
-     |                        |                        |                            |                           |
-     |                        |                        |                            |-- POST /token             |
-     |                        |                        |                            |   grant_type=             |
-     |                        |                        |                            |   client_credentials ---->|
-     |                        |                        |                            |                           |-- Validate
-     |                        |                        |                            |<-- 200 OK ----------------|   credentials
-     |                        |                        |                            |                           |
-     |                        |                        |                            |-- Encrypt & store         |
-     |                        |                        |                            |   credentials             |
-     |                        |                        |                            |   (linked to order_id)    |
-     |                        |                        |                            |                           |
-     |                        |                        |<-- { client_id,            |                           |
-     |                        |                        |      client_secret,        |                           |
-     |                        |                        |      expires_at: 0 } ------|                           |
+Customer Admin        Red Hat Google Form       Google Card Form         Gemini Enterprise        Agent (Marketplace Handler)        Red Hat SSO
+     |                        |                        |                        |                            |                           |
+     |-- Fill in request  --->|                        |                        |                            |                           |
+     |   form (org details,   |                        |                        |                            |                           |
+     |    contact info)       |                        |                        |                            |                           |
+     |                        |-- Request processed    |                        |                            |                           |
+     |                        |   by Red Hat team      |                        |                            |                           |
+     |                        |                        |                        |                            |                           |
+     |<-- Email with          |                        |                        |                            |                           |
+     |   client_id and        |                        |                        |                            |                           |
+     |   client_secret -------|                        |                        |                            |                           |
+     |                        |                        |                        |                            |                           |
+     |   [Credentials received — proceed to register]  |                        |                            |                           |
+     |                        |                        |                        |                            |                           |
+     |-- Open agent card -----|----------------------->|                        |                            |                           |
+     |                        |                        |                        |                            |                           |
+     |                        |                        |   (Card displays       |                            |                           |
+     |                        |                        |    client_id and       |                            |                           |
+     |                        |                        |    client_secret       |                            |                           |
+     |                        |                        |    fields to fill in)  |                            |                           |
+     |                        |                        |                        |                            |                           |
+     |-- Enter client_id and  |                        |                        |                            |                           |
+     |   client_secret from   |                        |                        |                            |                           |
+     |   email ---------------|----------------------->|                        |                            |                           |
+     |                        |                        |                        |                            |                           |
+     |-- Submit form ---------|----------------------->|                        |                            |                           |
+     |                        |                        |-- Register agent ----->|                            |                           |
+     |                        |                        |                        |                            |                           |
+     |                        |                        |                        |-- POST /dcr                |                           |
+     |                        |                        |                        |   { software_statement,    |                           |
+     |                        |                        |                        |     client_id,             |                           |
+     |                        |                        |                        |     client_secret } ------>|                           |
+     |                        |                        |                        |                            |                           |
+     |                        |                        |                        |                            |-- Validate Google JWT     |
+     |                        |                        |                        |                            |   (verify signature,      |
+     |                        |                        |                        |                            |    issuer, audience,      |
+     |                        |                        |                        |                            |    extract claims:        |
+     |                        |                        |                        |                            |    account_id, order_id)  |
+     |                        |                        |                        |                            |                           |
+     |                        |                        |                        |                            |-- Validate account_id     |
+     |                        |                        |                        |                            |   is ACTIVE               |
+     |                        |                        |                        |                            |-- Validate order_id       |
+     |                        |                        |                        |                            |   is ACTIVE               |
+     |                        |                        |                        |                            |                           |
+     |                        |                        |                        |                            |-- POST /token             |
+     |                        |                        |                        |                            |   grant_type=             |
+     |                        |                        |                        |                            |   client_credentials ---->|
+     |                        |                        |                        |                            |                           |-- Validate
+     |                        |                        |                        |                            |<-- 200 OK ----------------|   credentials
+     |                        |                        |                        |                            |                           |
+     |                        |                        |                        |                            |-- Encrypt & store         |
+     |                        |                        |                        |                            |   credentials             |
+     |                        |                        |                        |                            |   (linked to order_id)    |
+     |                        |                        |                        |                            |                           |
+     |                        |                        |                        |<-- { client_id,            |                           |
+     |                        |                        |                        |      client_secret,        |                           |
+     |                        |                        |                        |      client_secret_        |                           |
+     |                        |                        |                        |      expires_at: 0 } ------|                           |
 ```
 
 **What happens:**
 
-1. The customer admin opens the agent's card in Gemini Enterprise. The card
+1. **Credential request (prerequisite):** Before registering the agent, the
+   customer admin must obtain OAuth client credentials from Red Hat. This is
+   done by filling in the
+   [Red Hat credential request form](https://forms.gle/PLACEHOLDER) with
+   the required organization details and contact information. The Red Hat
+   team processes the request, provisions the OAuth client in Red Hat SSO,
+   and sends the `client_id` and `client_secret` to the customer admin
+   **using Bitwarden Send url via email**.
+
+   > **Note:** This is a one-time provisioning step. The customer admin
+   > must complete this form and wait to receive the credentials by email
+   > before proceeding with agent registration in Gemini Enterprise.
+
+2. The customer admin opens the agent's card in Gemini Enterprise. The card
    displays a registration form with fields for `client_id` and
    `client_secret`.
-2. The customer admin obtains these credentials from their Red Hat SSO
-   instance (or from the Red Hat team that pre-provisioned them) and enters
-   them into the form.
-3. Gemini Enterprise sends a `POST /dcr` request that includes both the
+3. The customer admin enters the `client_id` and `client_secret` received
+   via email from Red Hat into the form.
+4. Gemini Enterprise sends a `POST /dcr` request that includes both the
    `software_statement` JWT and the `client_id` / `client_secret` in the
    request body.
-4. The agent validates the Google JWT and the account/order state (same as
+5. The agent validates the Google JWT and the account/order state (same as
    DCR mode).
-5. The agent validates the provided credentials by performing a
+6. The agent validates the provided credentials by performing a
    `client_credentials` grant against the Red Hat SSO token endpoint. If the
    grant succeeds, the credentials are confirmed valid.
-6. The agent encrypts and stores the credentials linked to the `order_id`.
-7. Returns the credentials back to Gemini Enterprise.
+7. The agent encrypts and stores the credentials linked to the `order_id`.
+8. Returns the credentials back to Gemini Enterprise.
 
 ---
 
@@ -432,6 +468,10 @@ The MCP header provider uses a two-tier priority system:
    `lightspeed-client-secret`). This mode uses a dedicated service account
    for all MCP calls regardless of the end user.
 
+   > **Note:** This mode is not used in the Google Cloud Marketplace
+   > deployment, since the agent serves multiple customers from a shared
+   > instance and does not have per-customer environment variables.
+
 2. **Priority 2 — Token pass-through**: If no service account credentials are
    configured, the agent forwards the caller's Bearer token (stored in the
    request-scoped `ContextVar` during middleware processing) as an
@@ -463,19 +503,22 @@ The MCP header provider uses a two-tier priority system:
       |                    in Red Hat SSO              |                        |                      Bearer token
       v                     |                    3a. Redirect to           4a. Agent introspects         |
  order_id created      2b. [Static] Admin            Red Hat SSO               token using its      5a. MCP server
- (ACTIVE state)            gets client_id/           login page                own credentials          forwards to
-                           secret from                 |                        |                       Lightspeed
-                           Red Hat SSO           3b. User logs in          4b. Agent validates          APIs
-                           and enters                with Red Hat              scope and                 |
-                           them in the               credentials               order status         5b. Lightspeed
-                           Google card                 |                        |                       APIs validate
-                           form                  3c. Auth code             4c. Request proceeds         token/creds
-                            |                        exchanged for             if valid                  |
-                       2c. Credentials               access token               |                   5c. Response
-                           validated and               |                        v                       flows back
-                           stored (linked        3d. Access token          Order-bound,                 to user
-                           to order_id)              ready to use          scope-validated
-                                                                           request
+ (ACTIVE state)            requests creds            login page                own credentials          forwards to
+                           via Red Hat                  |                        |                       Lightspeed
+                           Google Form           3b. User logs in          4b. Agent validates          APIs
+                           → receives                with Red Hat              scope and                 |
+                           client_id/secret          credentials               order status         5b. Lightspeed
+                           by email                    |                        |                       APIs validate
+                            |                    3c. Auth code             4c. Request proceeds         token/creds
+                       2b'. Admin enters              exchanged for             if valid                  |
+                           credentials in             access token               |                  5c. Response
+                           Gemini card                  |                        v                      flows back
+                           form                  3d. Access token          Order-bound,                 to user
+                            |                        ready to use          scope-validated
+                       2c. Credentials                                     request
+                           validated and
+                           stored (linked
+                           to order_id)
 ```
 
 ---
