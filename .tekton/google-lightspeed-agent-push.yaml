@@ -23,7 +23,7 @@ spec:
   - name: revision
     value: '{{revision}}'
   - name: output-image
-    value: quay.io/ecosystem-appeng/google_lightspeed_agent:{{revision}}
+    value: quay.io/ecosystem-appeng/google-lightspeed-agent:{{revision}}
   - name: dockerfile
     value: ./Containerfile
   pipelineSpec:
