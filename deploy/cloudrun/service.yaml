@@ -88,6 +88,9 @@ spec:
               value: ""
             # Replace with the required scopes if any is needed
             #  value: "agent:insights"
+            # Ensure production environment do not skip JWT validation
+            - name: SKIP_JWT_VALIDATION
+              value: "false"
             # MCP Configuration
             # The agent connects to the MCP sidecar container over HTTP
             - name: MCP_TRANSPORT_MODE

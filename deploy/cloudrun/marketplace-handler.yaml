@@ -72,6 +72,9 @@ spec:
             # Red Hat SSO Configuration
             - name: RED_HAT_SSO_ISSUER
               value: "https://sso.redhat.com/auth/realms/redhat-external"
+            # Ensure production environment do not skip JWT validation
+            - name: SKIP_JWT_VALIDATION
+              value: "false"
             # DCR Configuration
             - name: DCR_ENABLED
               value: "true"
