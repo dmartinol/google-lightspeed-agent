@@ -17,7 +17,7 @@ class TestAuthenticationMiddleware:
         return AuthenticationMiddleware(app=lambda scope, receive, send: None)
 
     @pytest.mark.asyncio
-    async def test_is_authorized_for_order_allows_active_mapped_client(self, middleware):
+    async def test_resolve_and_validate_order_allows_active_mapped_client(self, middleware):
         """Allow when entitlement is active and mapped client matches."""
         entitlement = Entitlement(
             id="order-1",
@@ -28,7 +28,9 @@ class TestAuthenticationMiddleware:
         entitlement_repo = MagicMock()
         entitlement_repo.get = AsyncMock(return_value=entitlement)
         dcr_repo = MagicMock()
-        dcr_repo.get_by_order_id = AsyncMock(return_value=MagicMock(client_id="client-1"))
+        dcr_repo.get_by_client_id = AsyncMock(
+            return_value=MagicMock(client_id="client-1", order_id="order-1")
+        )
 
         with patch(
             "lightspeed_agent.marketplace.repository.get_entitlement_repository",
@@ -37,15 +39,14 @@ class TestAuthenticationMiddleware:
             "lightspeed_agent.dcr.repository.get_dcr_client_repository",
             return_value=dcr_repo,
         ):
-            allowed = await middleware._is_authorized_for_order(
-                order_id="order-1",
+            result = await middleware._resolve_and_validate_order(
                 client_id="client-1",
             )
 
-        assert allowed is True
+        assert result == "order-1"
 
     @pytest.mark.asyncio
-    async def test_is_authorized_for_order_denies_inactive_entitlement(self, middleware):
+    async def test_resolve_and_validate_order_denies_inactive_entitlement(self, middleware):
         """Deny when entitlement is not active."""
         entitlement = Entitlement(
             id="order-2",
@@ -56,7 +57,9 @@ class TestAuthenticationMiddleware:
         entitlement_repo = MagicMock()
         entitlement_repo.get = AsyncMock(return_value=entitlement)
         dcr_repo = MagicMock()
-        dcr_repo.get_by_order_id = AsyncMock(return_value=MagicMock(client_id="client-2"))
+        dcr_repo.get_by_client_id = AsyncMock(
+            return_value=MagicMock(client_id="client-2", order_id="order-2")
+        )
 
         with patch(
             "lightspeed_agent.marketplace.repository.get_entitlement_repository",
@@ -65,40 +68,27 @@ class TestAuthenticationMiddleware:
             "lightspeed_agent.dcr.repository.get_dcr_client_repository",
             return_value=dcr_repo,
         ):
-            allowed = await middleware._is_authorized_for_order(
-                order_id="order-2",
+            result = await middleware._resolve_and_validate_order(
                 client_id="client-2",
             )
 
-        assert allowed is False
+        assert result is None
 
     @pytest.mark.asyncio
-    async def test_is_authorized_for_order_denies_client_mismatch(self, middleware):
-        """Deny when token client_id differs from order's mapped DCR client."""
-        entitlement = Entitlement(
-            id="order-3",
-            account_id="account-1",
-            provider_id="provider-1",
-            state=EntitlementState.ACTIVE,
-        )
-        entitlement_repo = MagicMock()
-        entitlement_repo.get = AsyncMock(return_value=entitlement)
+    async def test_resolve_and_validate_order_denies_no_dcr_client(self, middleware):
+        """Deny when no DCR client is found for the client_id."""
         dcr_repo = MagicMock()
-        dcr_repo.get_by_order_id = AsyncMock(
-            return_value=MagicMock(client_id="client-other")
-        )
+        dcr_repo.get_by_client_id = AsyncMock(return_value=None)
 
         with patch(
             "lightspeed_agent.marketplace.repository.get_entitlement_repository",
-            return_value=entitlement_repo,
+            return_value=MagicMock(),
         ), patch(
             "lightspeed_agent.dcr.repository.get_dcr_client_repository",
             return_value=dcr_repo,
         ):
-            allowed = await middleware._is_authorized_for_order(
-                order_id="order-3",
-                client_id="client-3",
+            result = await middleware._resolve_and_validate_order(
+                client_id="client-unknown",
             )
 
-        assert allowed is False
-
+        assert result is None
