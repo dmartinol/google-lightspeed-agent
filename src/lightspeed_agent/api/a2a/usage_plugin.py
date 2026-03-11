@@ -1,7 +1,7 @@
 """Usage tracking plugin with per-order metrics."""
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from google.adk.models.llm_response import LlmResponse
 from google.adk.plugins.base_plugin import BasePlugin
@@ -40,7 +40,7 @@ class UsageTrackingPlugin(BasePlugin):
         *,
         callback_context,
         llm_response: LlmResponse,
-    ) -> Optional[LlmResponse]:
+    ) -> LlmResponse | None:
         """Track token usage from LLM responses."""
         if llm_response.usage_metadata:
             order_id = _resolve_order_id()
@@ -73,7 +73,7 @@ class UsageTrackingPlugin(BasePlugin):
         tool_args: dict[str, Any],
         tool_context,
         result: dict,
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """Track tool/MCP calls."""
         order_id = _resolve_order_id()
         if not order_id:

@@ -1,7 +1,8 @@
 """Red Hat Lightspeed MCP tools integration for Google ADK."""
 
 import os
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from google.adk.tools.mcp_tool.mcp_session_manager import (
     SseConnectionParams,
@@ -10,15 +11,12 @@ from google.adk.tools.mcp_tool.mcp_session_manager import (
 )
 from mcp import StdioServerParameters
 
-from lightspeed_agent.tools.schema_sanitizer import SanitizedMcpToolset as McpToolset
-
-from lightspeed_agent.config import get_settings
 from lightspeed_agent.tools.mcp_config import MCPServerConfig
 from lightspeed_agent.tools.mcp_headers import create_mcp_header_provider
+from lightspeed_agent.tools.schema_sanitizer import SanitizedMcpToolset as McpToolset
 
 if TYPE_CHECKING:
     from google.adk.agents.readonly_context import ReadonlyContext
-    from google.adk.tools import BaseTool
 
 
 def create_insights_toolset(

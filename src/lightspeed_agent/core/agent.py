@@ -10,8 +10,9 @@ from lightspeed_agent.config import get_settings
 logger = logging.getLogger(__name__)
 
 # Agent instruction describing its capabilities
-AGENT_INSTRUCTION = """You are the Red Hat Lightspeed Agent for Google Cloud, an AI assistant specialized in
-helping users manage their Red Hat infrastructure. You have access to the following
+AGENT_INSTRUCTION = """You are the Red Hat Lightspeed Agent for Google Cloud, \
+an AI assistant specialized in helping users manage their Red Hat infrastructure. \
+You have access to the following
 Red Hat Insights capabilities:
 
 ## Advisor

@@ -2,8 +2,8 @@
 
 import asyncio
 import logging
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -127,7 +127,9 @@ async def init_database(max_retries: int = 30, retry_delay: float = 2.0) -> None
                 )
 
     # If we get here, all retries failed
-    raise RuntimeError(f"Failed to connect to database after {max_retries} attempts") from last_error
+    raise RuntimeError(
+        f"Failed to connect to database after {max_retries} attempts"
+    ) from last_error
 
 
 async def close_database() -> None:

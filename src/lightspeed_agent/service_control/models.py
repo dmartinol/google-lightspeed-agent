@@ -1,13 +1,13 @@
 """Data models for Google Cloud Service Control API."""
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 
-class CheckErrorCode(str, Enum):
+class CheckErrorCode(StrEnum):
     """Error codes from Service Control check response."""
 
     # Service not activated for the consumer

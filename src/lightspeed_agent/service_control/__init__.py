@@ -23,13 +23,13 @@ from lightspeed_agent.service_control.reporter import (
     UsageReporter,
     get_usage_reporter,
 )
+from lightspeed_agent.service_control.router import router as service_control_router
 from lightspeed_agent.service_control.scheduler import (
     ReportingScheduler,
     get_reporting_scheduler,
     start_reporting_scheduler,
     stop_reporting_scheduler,
 )
-from lightspeed_agent.service_control.router import router as service_control_router
 
 __all__ = [
     # Client

@@ -48,8 +48,8 @@ async def hybrid_dcr_handler(request: Request) -> JSONResponse:
     """
     try:
         body = await request.json()
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid JSON body")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="Invalid JSON body") from e
 
     # Route based on request content
     if "software_statement" in body:

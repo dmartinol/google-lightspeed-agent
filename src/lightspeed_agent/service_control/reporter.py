@@ -341,7 +341,7 @@ class UsageReporter:
             )
 
         results = await self.report_hourly()
-        
+
         backfill_results = await self.report_backfill()
         if backfill_results:
             logger.info(

@@ -3,8 +3,6 @@
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from fastapi.testclient import TestClient
-
 from a2a.types import (
     AgentCapabilities,
     AgentSkill,
@@ -14,6 +12,7 @@ from a2a.types import (
     TaskStatus,
     TextPart,
 )
+from fastapi.testclient import TestClient
 
 from lightspeed_agent.api.a2a.agent_card import build_agent_card, get_agent_card_dict
 from lightspeed_agent.api.app import create_app

@@ -1,13 +1,13 @@
 """Data models for Dynamic Client Registration (DCR)."""
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 
-class DCRErrorCode(str, Enum):
+class DCRErrorCode(StrEnum):
     """DCR error codes per RFC 7591."""
 
     INVALID_REQUEST = "invalid_request"

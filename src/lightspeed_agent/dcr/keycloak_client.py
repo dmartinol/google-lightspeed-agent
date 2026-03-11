@@ -93,7 +93,9 @@ class KeycloakDCRClient:
         request_body = {
             "client_name": client_name,
             "redirect_uris": redirect_uris or [],
-            "grant_types": grant_types or ["authorization_code", "refresh_token", "client_credentials"],
+            "grant_types": grant_types or [
+                "authorization_code", "refresh_token", "client_credentials",
+            ],
             "token_endpoint_auth_method": "client_secret_basic",
             "application_type": "web",
             "scope": settings.agent_required_scope,

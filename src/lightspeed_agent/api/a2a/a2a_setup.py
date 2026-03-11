@@ -11,7 +11,6 @@ from a2a.server.apps import A2AFastAPIApplication
 from a2a.server.request_handlers import DefaultRequestHandler
 from a2a.server.tasks import InMemoryTaskStore
 from fastapi import FastAPI
-
 from google.adk.a2a.executor.a2a_agent_executor import A2aAgentExecutor
 from google.adk.apps import App
 from google.adk.artifacts import InMemoryArtifactService
@@ -78,7 +77,8 @@ def _get_session_service():
             )
         except Exception as e:
             logger.warning(
-                "Failed to initialize DatabaseSessionService (%s), falling back to InMemorySessionService",
+                "Failed to initialize DatabaseSessionService (%s), "
+                "falling back to InMemorySessionService",
                 e,
             )
 

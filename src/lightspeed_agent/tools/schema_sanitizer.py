@@ -46,9 +46,7 @@ def _deep_sanitize_schema(schema):
             schema["type"] = "object"
         elif "items" in schema:
             schema["type"] = "array"
-        elif "enum" in schema:
-            schema["type"] = "string"
-        elif schema:
+        elif "enum" in schema or schema:
             schema["type"] = "string"
 
     # Recurse into properties

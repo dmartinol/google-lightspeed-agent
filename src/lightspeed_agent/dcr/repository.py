@@ -1,10 +1,8 @@
 """Repository for DCR registered clients with PostgreSQL persistence."""
 
 import logging
-from datetime import datetime
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from lightspeed_agent.db import DCRClientModel, get_session
 from lightspeed_agent.dcr.models import RegisteredClient

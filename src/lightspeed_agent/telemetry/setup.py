@@ -67,7 +67,8 @@ def _create_exporter(exporter_type: str, otlp_endpoint: str, otlp_http_endpoint:
             return JaegerExporter()
         except ImportError:
             logger.error(
-                "Jaeger exporter not installed. Install with: pip install opentelemetry-exporter-jaeger"
+                "Jaeger exporter not installed."
+                " Install with: pip install opentelemetry-exporter-jaeger"
             )
             raise
 
@@ -78,7 +79,8 @@ def _create_exporter(exporter_type: str, otlp_endpoint: str, otlp_http_endpoint:
             return ZipkinExporter()
         except ImportError:
             logger.error(
-                "Zipkin exporter not installed. Install with: pip install opentelemetry-exporter-zipkin"
+                "Zipkin exporter not installed."
+                " Install with: pip install opentelemetry-exporter-zipkin"
             )
             raise
 

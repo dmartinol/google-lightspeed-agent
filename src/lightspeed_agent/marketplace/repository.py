@@ -4,10 +4,8 @@ Uses PostgreSQL via SQLAlchemy for persistence.
 """
 
 import logging
-from datetime import datetime
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from lightspeed_agent.db import (
     MarketplaceAccountModel,

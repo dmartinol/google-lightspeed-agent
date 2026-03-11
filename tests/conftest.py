@@ -38,7 +38,7 @@ async def db_session():
 
     Creates all tables and yields, then cleans up after.
     """
-    from lightspeed_agent.db import init_database, close_database
+    from lightspeed_agent.db import close_database, init_database
 
     await init_database()
     yield

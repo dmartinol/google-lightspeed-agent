@@ -1,13 +1,13 @@
 """Data models for Google Cloud Marketplace Procurement integration."""
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 
-class ProcurementEventType(str, Enum):
+class ProcurementEventType(StrEnum):
     """Marketplace Procurement event types from Pub/Sub."""
 
     # Account events
@@ -37,7 +37,7 @@ class ProcurementEventType(str, Enum):
     ENTITLEMENT_OFFER_ENDED = "ENTITLEMENT_OFFER_ENDED"
 
 
-class AccountState(str, Enum):
+class AccountState(StrEnum):
     """Account states in the procurement lifecycle."""
 
     PENDING = "pending"
@@ -45,7 +45,7 @@ class AccountState(str, Enum):
     DELETED = "deleted"
 
 
-class EntitlementState(str, Enum):
+class EntitlementState(StrEnum):
     """Entitlement states in the procurement lifecycle."""
 
     PENDING = "pending"

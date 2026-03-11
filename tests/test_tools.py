@@ -1,23 +1,21 @@
 """Tests for MCP tools integration."""
 
 import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import pytest
-
-from lightspeed_agent.tools.mcp_config import MCPServerConfig
-from lightspeed_agent.tools.skills import (
-    ALL_SKILLS,
-    READ_ONLY_SKILLS,
-    Skill,
-    get_skills_for_agent_card,
-)
 from lightspeed_agent.tools.insights_tools import (
     ADVISOR_TOOLS,
     ALL_INSIGHTS_TOOLS,
     INVENTORY_TOOLS,
     READ_ONLY_TOOLS,
     VULNERABILITY_TOOLS,
+)
+from lightspeed_agent.tools.mcp_config import MCPServerConfig
+from lightspeed_agent.tools.skills import (
+    ALL_SKILLS,
+    READ_ONLY_SKILLS,
+    Skill,
+    get_skills_for_agent_card,
 )
 
 

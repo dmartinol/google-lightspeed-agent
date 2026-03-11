@@ -95,10 +95,18 @@ class UsageRepository:
             index_where=UsageRecordModel.reported.is_(False)
             & UsageRecordModel.reporting_started_at.is_(None),
             set_={
-                UsageRecordModel.request_count: UsageRecordModel.request_count + stmt.excluded.request_count,
-                UsageRecordModel.input_tokens: UsageRecordModel.input_tokens + stmt.excluded.input_tokens,
-                UsageRecordModel.output_tokens: UsageRecordModel.output_tokens + stmt.excluded.output_tokens,
-                UsageRecordModel.tool_calls: UsageRecordModel.tool_calls + stmt.excluded.tool_calls,
+                UsageRecordModel.request_count: (
+                    UsageRecordModel.request_count + stmt.excluded.request_count
+                ),
+                UsageRecordModel.input_tokens: (
+                    UsageRecordModel.input_tokens + stmt.excluded.input_tokens
+                ),
+                UsageRecordModel.output_tokens: (
+                    UsageRecordModel.output_tokens + stmt.excluded.output_tokens
+                ),
+                UsageRecordModel.tool_calls: (
+                    UsageRecordModel.tool_calls + stmt.excluded.tool_calls
+                ),
                 UsageRecordModel.client_id: func.coalesce(
                     UsageRecordModel.client_id,
                     stmt.excluded.client_id,

@@ -1,9 +1,10 @@
 """Scheduler for periodic usage reporting."""
 
 import asyncio
+import contextlib
 import logging
+from collections.abc import Callable
 from datetime import datetime, timedelta
-from typing import Callable
 
 from lightspeed_agent.service_control.reporter import UsageReporter, get_usage_reporter
 
@@ -174,17 +175,13 @@ class ReportingScheduler:
         # Cancel tasks
         if self._hourly_task:
             self._hourly_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._hourly_task
-            except asyncio.CancelledError:
-                pass
 
         if self._retry_task:
             self._retry_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._retry_task
-            except asyncio.CancelledError:
-                pass
 
         logger.info("Scheduler stopped")
 
