@@ -105,7 +105,7 @@ return {1, "ok", min_remaining_minute, min_remaining_hour, 0, 0}
 
     async def verify_connection(self) -> None:
         """Fail fast when Redis is not reachable."""
-        await self._redis.ping()
+        await self._redis.ping()  # type: ignore[misc]
 
     async def close(self) -> None:
         """Close Redis resources."""
@@ -128,7 +128,7 @@ return {1, "ok", min_remaining_minute, min_remaining_hour, 0, 0}
             redis_keys.append(f"{self._key_prefix}:{principal_key}:h")
 
         try:
-            result = await self._redis.eval(
+            result = await self._redis.eval(  # type: ignore[misc]
                 self.LUA_CHECK_AND_INCREMENT,
                 len(redis_keys),
                 *redis_keys,
@@ -223,7 +223,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         # Skip rate limiting for non-API paths
         if self._should_skip(path):
-            return await call_next(request)
+            response: Response = await call_next(request)
+            return response
 
         # Check rate limit
         principals = self._resolve_principals(request)
@@ -242,15 +243,15 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return self._rate_limit_response(status)
 
         # Process request
-        response = await call_next(request)
+        actual_response: Response = await call_next(request)
 
         # Add rate limit headers
-        response.headers["X-RateLimit-Limit"] = str(status["limit_per_minute"])
-        response.headers["X-RateLimit-Remaining"] = str(
+        actual_response.headers["X-RateLimit-Limit"] = str(status["limit_per_minute"])
+        actual_response.headers["X-RateLimit-Remaining"] = str(
             max(0, int(status["limit_per_minute"]) - int(status["requests_this_minute"]))
         )
 
-        return response
+        return actual_response
 
     def _should_skip(self, path: str) -> bool:
         """Check if path should skip rate limiting."""

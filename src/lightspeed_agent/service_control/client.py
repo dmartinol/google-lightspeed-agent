@@ -39,7 +39,7 @@ class ServiceControlClient:
         settings = get_settings()
         self._service_name = service_name or settings.service_control_service_name
         self._project_id = project_id or settings.google_cloud_project
-        self._client = None
+        self._client: Any = None
 
     def _get_client(self) -> Any:
         """Get or create the Service Control client.
@@ -116,7 +116,7 @@ class ServiceControlClient:
                     CheckError(code=code, detail=error.detail or "")
                 )
 
-            return CheckResponse(
+            return CheckResponse(  # type: ignore[call-arg]
                 operation_id=response.operation_id or operation_id,
                 check_errors=check_errors,
             )
@@ -124,7 +124,7 @@ class ServiceControlClient:
         except Exception as e:
             logger.error("Service Control check failed: %s", e)
             # Return a response indicating the check failed
-            return CheckResponse(
+            return CheckResponse(  # type: ignore[call-arg]
                 operation_id=operation_id,
                 check_errors=[
                     CheckError(
@@ -175,7 +175,7 @@ class ServiceControlClient:
 
             if not metric_value_sets:
                 logger.debug("No metrics to report for consumer %s", consumer_id)
-                return ReportResponse(report_errors=[])
+                return ReportResponse(report_errors=[])  # type: ignore[call-arg]
 
             # Build the operation
             operation = servicecontrol_v1.Operation(
@@ -205,7 +205,7 @@ class ServiceControlClient:
                     "status": error.status,
                 })
 
-            return ReportResponse(
+            return ReportResponse(  # type: ignore[call-arg]
                 report_errors=report_errors,
                 service_config_id=response.service_config_id,
                 service_rollout_id=response.service_rollout_id,
@@ -213,7 +213,7 @@ class ServiceControlClient:
 
         except Exception as e:
             logger.error("Service Control report failed: %s", e)
-            return ReportResponse(
+            return ReportResponse(  # type: ignore[call-arg]
                 report_errors=[{"error": str(e), "operation_id": operation_id}]
             )
 

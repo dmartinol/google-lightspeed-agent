@@ -6,7 +6,7 @@ import os
 import uvicorn
 
 
-def main():
+def main() -> None:
     """Run the Marketplace Handler service."""
     # Configure logging
     log_level = os.getenv("LOG_LEVEL", "INFO").upper()

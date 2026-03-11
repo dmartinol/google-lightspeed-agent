@@ -1,6 +1,8 @@
 """Repository for DCR registered clients with PostgreSQL persistence."""
 
 import logging
+from datetime import datetime
+from typing import Any
 
 from sqlalchemy import select
 
@@ -67,7 +69,7 @@ class DCRClientRepository:
         grant_types: list[str] | None = None,
         registration_access_token_encrypted: str | None = None,
         keycloak_client_uuid: str | None = None,
-        metadata: dict | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> RegisteredClient:
         """Create a new registered client.
 

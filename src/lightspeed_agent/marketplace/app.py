@@ -9,7 +9,9 @@ using smart routing based on request content.
 """
 
 import logging
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from typing import Any
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan manager for startup/shutdown events."""
     settings = get_settings()
 
@@ -67,13 +69,13 @@ def create_app() -> FastAPI:
 
     # Health check endpoint
     @app.get("/health")
-    async def health_check() -> dict:
+    async def health_check() -> dict[str, str]:
         """Health check endpoint."""
         return {"status": "healthy", "service": "marketplace-handler"}
 
     # Ready check endpoint
     @app.get("/ready")
-    async def ready_check() -> dict:
+    async def ready_check() -> dict[str, str]:
         """Readiness check endpoint."""
         return {"status": "ready", "service": "marketplace-handler"}
 

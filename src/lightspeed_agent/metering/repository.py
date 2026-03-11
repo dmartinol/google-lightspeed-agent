@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -67,7 +68,7 @@ class UsageRepository:
 
     async def _increment_usage_atomic(
         self,
-        session,
+        session: Any,
         order_id: str,
         period_start: datetime,
         period_end: datetime,
@@ -117,7 +118,7 @@ class UsageRepository:
 
     async def _increment_usage_fallback(
         self,
-        session,
+        session: Any,
         order_id: str,
         period_start: datetime,
         period_end: datetime,
@@ -234,7 +235,7 @@ class UsageRepository:
                 )
             )
             result = await session.execute(stmt)
-            return int(result.rowcount or 0)
+            return int(result.rowcount or 0)  # type: ignore[attr-defined]
 
     async def release_claimed_rows(self, ids: list[int]) -> int:
         """Release claimed rows on report failure. Clears reporting_started_at."""
@@ -248,7 +249,7 @@ class UsageRepository:
                 .values(reporting_started_at=None, report_error=None)
             )
             result = await session.execute(stmt)
-            return int(result.rowcount or 0)
+            return int(result.rowcount or 0)  # type: ignore[attr-defined]
 
     async def release_stale_claimed_rows(
         self,
@@ -272,7 +273,7 @@ class UsageRepository:
                 .values(reporting_started_at=None, report_error=None)
             )
             result = await session.execute(stmt)
-            return int(result.rowcount or 0)
+            return int(result.rowcount or 0)  # type: ignore[attr-defined]
 
     async def get_unreported_periods(
         self,

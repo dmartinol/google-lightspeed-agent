@@ -122,27 +122,27 @@ class DCRResponse(BaseModel):
         description="Secret expiration (0 = never expires)",
     )
     client_id_issued_at: int | None = Field(
-        None,
+        default=None,
         description="Timestamp when client_id was issued",
     )
     registration_access_token: str | None = Field(
-        None,
+        default=None,
         description="Token for accessing registration endpoint",
     )
     registration_client_uri: str | None = Field(
-        None,
+        default=None,
         description="URI for client configuration endpoint",
     )
     redirect_uris: list[str] | None = Field(
-        None,
+        default=None,
         description="Registered redirect URIs",
     )
     grant_types: list[str] | None = Field(
-        None,
+        default=None,
         description="Allowed grant types",
     )
     token_endpoint_auth_method: str | None = Field(
-        None,
+        default=None,
         description="Token endpoint authentication method",
     )
 

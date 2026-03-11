@@ -409,7 +409,7 @@ class ProcurementService:
                 scopes=["https://www.googleapis.com/auth/cloud-platform"]
             )
             request = google.auth.transport.requests.Request()
-            credentials.refresh(request)
+            credentials.refresh(request)  # type: ignore[no-untyped-call]
             return {"Authorization": f"Bearer {credentials.token}"}
         except Exception as e:
             logger.warning("Failed to get ADC credentials: %s", e)

@@ -4,6 +4,7 @@ import asyncio
 import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from typing import Any
 
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -38,7 +39,7 @@ def get_engine() -> AsyncEngine:
     global _engine
     if _engine is None:
         settings = get_settings()
-        engine_kwargs: dict = {"echo": settings.debug}
+        engine_kwargs: dict[str, Any] = {"echo": settings.debug}
         if settings.database_url.startswith("sqlite"):
             from sqlalchemy.pool import StaticPool
 
