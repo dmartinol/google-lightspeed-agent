@@ -147,19 +147,10 @@ async def _handle_pubsub_event(body: dict[str, Any]) -> JSONResponse:
     # topic is shared across all agents in the same project. Filter events
     # by product to ensure each agent only processes its own entitlements.
     settings = get_settings()
-    product = data.get("entitlement", {}).get("product")
+    entitlement_data = data.get("entitlement")
+    product = entitlement_data.get("product") if entitlement_data else None
 
-    if not product:
-        # Account-only events have no product field. Account validation is
-        # handled via the Procurement API during DCR, not via local DB state.
-        logger.info(
-            "Skipping event without product field: %s (%s)", message_id, event_type_str
-        )
-        return JSONResponse(
-            content={"status": "ok", "message": "Account-only event, skipping"}
-        )
-
-    if settings.service_control_service_name:
+    if product and settings.service_control_service_name:
         # Strip the "products/" prefix if present
         product_id = product.removeprefix("products/")
         if product_id != settings.service_control_service_name:

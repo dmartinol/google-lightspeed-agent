@@ -129,6 +129,7 @@ log_info "Granting IAM roles to service account..."
 # - logging.logWriter: Write logs to Cloud Logging
 # - monitoring.metricWriter: Write metrics to Cloud Monitoring
 # - cloudsql.client: Connect to Cloud SQL instances
+# - serviceusage.serviceUsageConsumer: Bill API calls (Procurement API) to this project
 #
 # Note: roles/run.invoker is NOT granted here. It is granted to the
 # separate Pub/Sub Invoker SA on the marketplace-handler service
@@ -142,6 +143,7 @@ roles=(
     "roles/logging.logWriter"
     "roles/monitoring.metricWriter"
     "roles/cloudsql.client"
+    "roles/serviceusage.serviceUsageConsumer"
 )
 
 for role in "${roles[@]}"; do
@@ -263,12 +265,28 @@ if [[ "$ENABLE_MARKETPLACE" == "true" ]]; then
         --project="$PROJECT_ID" \
         --quiet || true
 
+    # Grant the Pub/Sub Invoker SA the Pub/Sub Editor role in the project.
+    # Required so that deploy.sh can impersonate this SA to create a push
+    # subscription attached to the marketplace topic (which is typically in a
+    # different GCP project, e.g. Google's cloudcommerceproc-prod).
+    log_info "Granting roles/pubsub.editor to Pub/Sub Invoker SA..."
+    gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+        --member="serviceAccount:$PUBSUB_INVOKER_SA" \
+        --role="roles/pubsub.editor" \
+        --quiet || true
+
     # -------------------------------------------------------------------------
     # Create Pub/Sub Topic
     # -------------------------------------------------------------------------
     PUBSUB_TOPIC="${PUBSUB_TOPIC:-marketplace-entitlements}"
 
-    if ! gcloud pubsub topics describe "$PUBSUB_TOPIC" --project="$PROJECT_ID" &>/dev/null; then
+    # If PUBSUB_TOPIC is a fully-qualified path (projects/.../topics/...),
+    # the topic lives in another GCP project (e.g. Google Cloud Marketplace).
+    # Skip creation — the topic is managed externally.
+    if [[ "$PUBSUB_TOPIC" == projects/* ]]; then
+        log_info "Pub/Sub topic is a cross-project reference: $PUBSUB_TOPIC"
+        log_info "Skipping topic creation (managed externally)"
+    elif ! gcloud pubsub topics describe "$PUBSUB_TOPIC" --project="$PROJECT_ID" &>/dev/null; then
         gcloud pubsub topics create "$PUBSUB_TOPIC" --project="$PROJECT_ID"
         log_info "Pub/Sub topic '$PUBSUB_TOPIC' created"
     else

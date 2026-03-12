@@ -57,6 +57,12 @@ class ProcurementService:
         )
 
         handlers = {
+            # Account lifecycle
+            ProcurementEventType.ACCOUNT_CREATION_REQUESTED: (
+                self._handle_account_creation_requested
+            ),
+            ProcurementEventType.ACCOUNT_ACTIVE: self._handle_account_active,
+            ProcurementEventType.ACCOUNT_DELETED: self._handle_account_deleted,
             # Entitlement lifecycle
             ProcurementEventType.ENTITLEMENT_CREATION_REQUESTED: (
                 self._handle_entitlement_creation_requested
@@ -94,6 +100,33 @@ class ProcurementService:
         else:
             logger.warning("No handler for event type: %s", event.event_type)
 
+    # Account lifecycle handlers
+
+    async def _handle_account_creation_requested(
+        self, event: ProcurementEvent
+    ) -> None:
+        """Handle ACCOUNT_CREATION_REQUESTED event.
+
+        The Procurement API requires the account to be approved before any
+        entitlements under it can be approved.
+        """
+        if not event.account:
+            logger.error("ACCOUNT_CREATION_REQUESTED missing account info")
+            return
+
+        await self._approve_account(event.account.id)
+        logger.info("Account creation requested and approved: %s", event.account.id)
+
+    async def _handle_account_active(self, event: ProcurementEvent) -> None:
+        """Handle ACCOUNT_ACTIVE event."""
+        account_id = event.account.id if event.account else "unknown"
+        logger.info("Account active: %s", account_id)
+
+    async def _handle_account_deleted(self, event: ProcurementEvent) -> None:
+        """Handle ACCOUNT_DELETED event."""
+        account_id = event.account.id if event.account else "unknown"
+        logger.info("Account deleted: %s", account_id)
+
     # Entitlement lifecycle handlers
 
     async def _handle_entitlement_creation_requested(
@@ -123,6 +156,20 @@ class ProcurementService:
                 metadata=metadata,
             )
             await self._entitlement_repo.create(entitlement)
+
+        # The Procurement API requires the account to be approved before
+        # entitlements can be approved.  Resolve the account ID (from event or
+        # by fetching the entitlement from the API) and approve it first.
+        # This is idempotent (returns 400 if already approved).
+        account_id = await self._resolve_account_id(event.entitlement.id, event)
+        if account_id:
+            await self._approve_account(account_id)
+        else:
+            logger.warning(
+                "Could not resolve account for entitlement %s — "
+                "entitlement approval may fail with FAILED_PRECONDITION",
+                event.entitlement.id,
+            )
 
         # Auto-approve the entitlement (raises on failure so Pub/Sub retries)
         await self._approve_entitlement(event.entitlement.id)
@@ -182,18 +229,40 @@ class ProcurementService:
     async def _handle_entitlement_offer_accepted(
         self, event: ProcurementEvent
     ) -> None:
-        """Handle ENTITLEMENT_OFFER_ACCEPTED event (for auto-approved offers)."""
+        """Handle ENTITLEMENT_OFFER_ACCEPTED event.
+
+        This event is sent when a customer accepts an offer. The provider
+        must still approve the account and entitlement via the Procurement API.
+        """
         if not event.entitlement:
             return
 
+        # Resolve account ID (from event or by fetching from API) and
+        # approve account first, then entitlement.
+        account_id = await self._resolve_account_id(event.entitlement.id, event)
+        if account_id:
+            await self._approve_account(account_id)
+        else:
+            logger.warning(
+                "Could not resolve account for entitlement %s — "
+                "entitlement approval may fail with FAILED_PRECONDITION",
+                event.entitlement.id,
+            )
+        await self._approve_entitlement(event.entitlement.id)
+
+        # Store/update the entitlement record locally
         entitlement = await self._entitlement_repo.get(event.entitlement.id)
         if not entitlement:
+            metadata = {}
+            if event.entitlement.product:
+                metadata["product_id"] = event.entitlement.product
             entitlement = Entitlement(
                 id=event.entitlement.id,
-                account_id="",
+                account_id=account_id or "",
                 state=EntitlementState.ACTIVE,
                 plan=event.entitlement.new_plan,
                 provider_id=event.provider_id,
+                metadata=metadata,
             )
             await self._entitlement_repo.create(entitlement)
         else:
@@ -211,7 +280,7 @@ class ProcurementService:
                 event.entitlement.new_offer_end_time.replace("Z", "+00:00")
             )
 
-        logger.info("Entitlement offer accepted: %s", event.entitlement.id)
+        logger.info("Entitlement offer accepted and approved: %s", event.entitlement.id)
 
     # Plan change handlers
 
@@ -318,6 +387,69 @@ class ProcurementService:
 
     # Procurement API operations
 
+    async def _resolve_account_id(
+        self, entitlement_id: str, event: ProcurementEvent
+    ) -> str | None:
+        """Resolve the account ID for an entitlement.
+
+        Pub/Sub events often arrive with an empty account field.  When that
+        happens, fetch the entitlement from the Procurement API — the response
+        always contains the account reference in the form
+        ``providers/{provider}/accounts/{account_id}``.
+
+        Args:
+            entitlement_id: The entitlement ID to look up.
+            event: The procurement event (checked first for account info).
+
+        Returns:
+            The account ID, or None if it cannot be resolved.
+        """
+        # 1. Try the event payload first
+        if event.account and event.account.id:
+            return event.account.id
+
+        # 2. Fall back to the Procurement API
+        if not self._settings.google_cloud_project:
+            return None
+
+        url = (
+            f"{self.PROCUREMENT_API_BASE}/providers/{self._settings.google_cloud_project}"
+            f"/entitlements/{entitlement_id}"
+        )
+        headers = await self._get_auth_headers()
+
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(url, headers=headers, timeout=30.0)
+
+            if response.status_code == 200:
+                data = response.json()
+                # account field is "providers/{provider}/accounts/{id}"
+                account_ref = data.get("account", "")
+                if "/accounts/" in account_ref:
+                    account_id = account_ref.rsplit("/accounts/", 1)[1]
+                    logger.info(
+                        "Resolved account %s for entitlement %s via API",
+                        account_id,
+                        entitlement_id,
+                    )
+                    return account_id
+            else:
+                logger.warning(
+                    "Failed to fetch entitlement %s: HTTP %s — %s",
+                    entitlement_id,
+                    response.status_code,
+                    response.text,
+                )
+        except Exception as e:
+            logger.warning(
+                "Error fetching entitlement %s for account resolution: %s",
+                entitlement_id,
+                e,
+            )
+
+        return None
+
     async def _get_auth_headers(self) -> dict[str, str]:
         """Get authentication headers for Procurement API calls.
 
@@ -340,6 +472,51 @@ class ProcurementService:
             logger.warning("Failed to get ADC credentials: %s", e)
             return {}
 
+    async def _approve_account(self, account_id: str) -> None:
+        """Approve an account via the Procurement API.
+
+        The account must be approved before any entitlements under it can
+        be approved.  Uses the "signup" approval name.
+
+        Args:
+            account_id: The account ID to approve.
+
+        Raises:
+            RuntimeError: If the Procurement API returns a non-200 response.
+            httpx.RequestError: On network errors.
+        """
+        if not self._settings.google_cloud_project:
+            logger.warning("GOOGLE_CLOUD_PROJECT not set, skipping account approval")
+            return
+
+        url = (
+            f"{self.PROCUREMENT_API_BASE}/providers/{self._settings.google_cloud_project}"
+            f"/accounts/{account_id}:approve"
+        )
+        headers = await self._get_auth_headers()
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                url,
+                content=b"",
+                headers={**headers, "Content-Length": "0"},
+                timeout=30.0,
+            )
+
+        if response.status_code == 200:
+            logger.info("Approved account: %s", account_id)
+        elif response.status_code == 400:
+            logger.warning(
+                "Cannot approve account %s (already processed?): %s",
+                account_id,
+                response.text,
+            )
+        else:
+            raise RuntimeError(
+                f"Failed to approve account {account_id}: "
+                f"HTTP {response.status_code} — {response.text}"
+            )
+
     async def _approve_entitlement(self, entitlement_id: str) -> None:
         """Approve an entitlement via the Procurement API.
 
@@ -350,13 +527,12 @@ class ProcurementService:
             RuntimeError: If the Procurement API returns a non-200 response.
             httpx.RequestError: On network errors.
         """
-        if not self._settings.service_control_service_name:
-            logger.warning("SERVICE_CONTROL_SERVICE_NAME not set, skipping approval")
+        if not self._settings.google_cloud_project:
+            logger.warning("GOOGLE_CLOUD_PROJECT not set, skipping approval")
             return
 
-        svc = self._settings.service_control_service_name
         url = (
-            f"{self.PROCUREMENT_API_BASE}/providers/{svc}"
+            f"{self.PROCUREMENT_API_BASE}/providers/{self._settings.google_cloud_project}"
             f"/entitlements/{entitlement_id}:approve"
         )
         headers = await self._get_auth_headers()
@@ -364,13 +540,22 @@ class ProcurementService:
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 url,
-                json={},
-                headers=headers,
+                content=b"",
+                headers={**headers, "Content-Length": "0"},
                 timeout=30.0,
             )
 
         if response.status_code == 200:
             logger.info("Approved entitlement: %s", entitlement_id)
+        elif response.status_code == 400:
+            # FAILED_PRECONDITION — entitlement is not in an approvable state
+            # (e.g. already approved, cancelled). Log and move on so Pub/Sub
+            # does not retry indefinitely.
+            logger.warning(
+                "Cannot approve entitlement %s (already processed?): %s",
+                entitlement_id,
+                response.text,
+            )
         else:
             raise RuntimeError(
                 f"Failed to approve entitlement {entitlement_id}: "
@@ -390,13 +575,12 @@ class ProcurementService:
             Account state string (e.g., "ACCOUNT_ACTIVE") or None on error.
         """
         try:
-            if not self._settings.service_control_service_name:
-                logger.warning("SERVICE_CONTROL_SERVICE_NAME not set, skipping account check")
+            if not self._settings.google_cloud_project:
+                logger.warning("GOOGLE_CLOUD_PROJECT not set, skipping account check")
                 return "ACCOUNT_ACTIVE"  # Allow for development
 
-            svc = self._settings.service_control_service_name
             url = (
-                f"{self.PROCUREMENT_API_BASE}/providers/{svc}"
+                f"{self.PROCUREMENT_API_BASE}/providers/{self._settings.google_cloud_project}"
                 f"/accounts/{account_id}"
             )
             headers = await self._get_auth_headers()
@@ -439,13 +623,12 @@ class ProcurementService:
             RuntimeError: If the Procurement API returns a non-200 response.
             httpx.RequestError: On network errors.
         """
-        if not self._settings.service_control_service_name:
-            logger.warning("SERVICE_CONTROL_SERVICE_NAME not set, skipping approval")
+        if not self._settings.google_cloud_project:
+            logger.warning("GOOGLE_CLOUD_PROJECT not set, skipping plan change approval")
             return
 
-        svc = self._settings.service_control_service_name
         url = (
-            f"{self.PROCUREMENT_API_BASE}/providers/{svc}"
+            f"{self.PROCUREMENT_API_BASE}/providers/{self._settings.google_cloud_project}"
             f"/entitlements/{entitlement_id}:approvePlanChange"
         )
         headers = await self._get_auth_headers()
@@ -463,6 +646,12 @@ class ProcurementService:
                 "Approved plan change for %s: %s",
                 entitlement_id,
                 new_plan,
+            )
+        elif response.status_code == 400:
+            logger.warning(
+                "Cannot approve plan change for %s (already processed?): %s",
+                entitlement_id,
+                response.text,
             )
         else:
             raise RuntimeError(

@@ -71,9 +71,20 @@ IMAGE_TAG="${IMAGE_TAG:-latest}"
 PUBSUB_INVOKER_NAME="${PUBSUB_INVOKER_NAME:-pubsub-invoker}"
 PUBSUB_INVOKER_SA="${PUBSUB_INVOKER_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
 
-# Marketplace Pub/Sub configuration
+# Marketplace configuration
 ENABLE_MARKETPLACE="${ENABLE_MARKETPLACE:-true}"
+SERVICE_CONTROL_SERVICE_NAME="${SERVICE_CONTROL_SERVICE_NAME:-}"
 PUBSUB_TOPIC="${PUBSUB_TOPIC:-marketplace-entitlements}"
+
+# When PUBSUB_TOPIC is a fully-qualified path (projects/.../topics/...),
+# the default derivation "${PUBSUB_TOPIC}-sub" produces an invalid
+# subscription name.  Require PUBSUB_SUBSCRIPTION to be set explicitly.
+if [[ "$PUBSUB_TOPIC" == projects/* && -z "${PUBSUB_SUBSCRIPTION:-}" ]]; then
+    log_error "PUBSUB_TOPIC is a fully-qualified path but PUBSUB_SUBSCRIPTION is not set."
+    log_error "Set PUBSUB_SUBSCRIPTION to a valid subscription name, e.g.:"
+    log_error "  export PUBSUB_SUBSCRIPTION=\"marketplace-events-sub\""
+    exit 1
+fi
 PUBSUB_SUBSCRIPTION="${PUBSUB_SUBSCRIPTION:-${PUBSUB_TOPIC}-sub}"
 
 # Default images
@@ -228,6 +239,7 @@ deploy_handler() {
         -e "s|\${SERVICE_ACCOUNT_NAME}|${SERVICE_ACCOUNT_NAME}|g" \
         -e "s|\${HANDLER_SERVICE_NAME}|${HANDLER_SERVICE_NAME}|g" \
         -e "s|\${DB_INSTANCE_NAME}|${DB_INSTANCE_NAME}|g" \
+        -e "s|\${SERVICE_CONTROL_SERVICE_NAME}|${SERVICE_CONTROL_SERVICE_NAME}|g" \
         deploy/cloudrun/marketplace-handler.yaml > "$tmp_yaml"
 
     # Deploy using the YAML
@@ -285,6 +297,16 @@ configure_pubsub_push() {
         --role="roles/run.invoker" \
         --quiet || true
 
+    # For cross-project topics (fully-qualified path), the Pub/Sub Invoker SA
+    # is the account linked in the Google Cloud Marketplace Producer Portal and
+    # has permission to subscribe to the external topic.  We must impersonate it
+    # because the caller's personal account does not have that permission.
+    local impersonate_flag=""
+    if [[ "$PUBSUB_TOPIC" == projects/* ]]; then
+        impersonate_flag="--impersonate-service-account=$PUBSUB_INVOKER_SA"
+        log_info "Using service account impersonation for cross-project topic"
+    fi
+
     # Create or update the push subscription
     if gcloud pubsub subscriptions describe "$PUBSUB_SUBSCRIPTION" --project="$PROJECT_ID" &>/dev/null; then
         log_info "Updating existing subscription '$PUBSUB_SUBSCRIPTION' with push endpoint..."
@@ -296,12 +318,14 @@ configure_pubsub_push() {
             --quiet
     else
         log_info "Creating push subscription '$PUBSUB_SUBSCRIPTION'..."
+        # shellcheck disable=SC2086
         gcloud pubsub subscriptions create "$PUBSUB_SUBSCRIPTION" \
             --topic="$PUBSUB_TOPIC" \
             --push-endpoint="$push_endpoint" \
             --push-auth-service-account="$PUBSUB_INVOKER_SA" \
             --ack-deadline=60 \
-            --project="$PROJECT_ID"
+            --project="$PROJECT_ID" \
+            $impersonate_flag
     fi
 
     log_info "Pub/Sub push subscription configured:"
