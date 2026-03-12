@@ -6,7 +6,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import Request, Response
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.responses import JSONResponse
 
 from lightspeed_agent.auth.introspection import (
@@ -75,7 +75,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
     async def dispatch(
         self,
         request: Request,
-        call_next,
+        call_next: RequestResponseEndpoint,
     ) -> Response:
         """Process request with authentication check."""
         _request_access_token.set(None)
@@ -146,12 +146,8 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         if path == "/" and method == "GET":
             return True
 
-        # Only POST to protected paths requires auth
-        if path in self.PROTECTED_PATHS and method == "POST":
-            return False
-
-        # Everything else is public by default
-        return True
+        # Only POST to protected paths requires auth; everything else is public
+        return not (path in self.PROTECTED_PATHS and method == "POST")
 
     @staticmethod
     def _extract_token_for_passthrough(request: Request) -> None:

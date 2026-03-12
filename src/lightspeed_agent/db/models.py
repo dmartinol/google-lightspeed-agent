@@ -4,10 +4,10 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import (
-    Index,
     JSON,
     TIMESTAMP,
     Boolean,
+    Index,
     Integer,
     String,
     Text,
@@ -17,10 +17,10 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
+from lightspeed_agent.db.base import Base
+
 # Use ARRAY(String) on PostgreSQL, JSON on SQLite (for tests)
 StringList = ARRAY(String).with_variant(JSON, "sqlite")
-
-from lightspeed_agent.db.base import Base
 
 
 class MarketplaceAccountModel(Base):

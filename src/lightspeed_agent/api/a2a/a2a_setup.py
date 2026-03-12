@@ -6,12 +6,12 @@ task management, and event conversion automatically.
 """
 
 import logging
+from typing import Any
 
 from a2a.server.apps import A2AFastAPIApplication
 from a2a.server.request_handlers import DefaultRequestHandler
 from a2a.server.tasks import InMemoryTaskStore
 from fastapi import FastAPI
-
 from google.adk.a2a.executor.a2a_agent_executor import A2aAgentExecutor
 from google.adk.apps import App
 from google.adk.artifacts import InMemoryArtifactService
@@ -27,7 +27,7 @@ from lightspeed_agent.core import create_agent
 logger = logging.getLogger(__name__)
 
 
-def _get_session_service():
+def _get_session_service() -> Any:
     """Get the appropriate session service based on configuration.
 
     For production, uses DatabaseSessionService which persists sessions to PostgreSQL.
@@ -78,12 +78,13 @@ def _get_session_service():
             )
         except Exception as e:
             logger.warning(
-                "Failed to initialize DatabaseSessionService (%s), falling back to InMemorySessionService",
+                "Failed to initialize DatabaseSessionService (%s), "
+                "falling back to InMemorySessionService",
                 e,
             )
 
     logger.info("Using InMemorySessionService for session management")
-    return InMemorySessionService()
+    return InMemorySessionService()  # type: ignore[no-untyped-call]
 
 
 def _create_runner() -> Runner:
@@ -114,7 +115,7 @@ def _create_runner() -> Runner:
         app=app,
         artifact_service=InMemoryArtifactService(),
         session_service=session_service,
-        memory_service=InMemoryMemoryService(),
+        memory_service=InMemoryMemoryService(),  # type: ignore[no-untyped-call]
     )
 
 

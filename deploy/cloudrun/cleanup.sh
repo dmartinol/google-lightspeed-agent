@@ -82,8 +82,7 @@ echo ""
 echo "  - Cloud Run services: $SERVICE_NAME, $HANDLER_SERVICE_NAME"
 echo "  - Pub/Sub topic: $PUBSUB_TOPIC"
 echo "  - Pub/Sub subscription: $PUBSUB_SUBSCRIPTION"
-echo "  - Secrets: lightspeed-client-id, lightspeed-client-secret,"
-echo "             redhat-sso-client-id, redhat-sso-client-secret, database-url,"
+echo "  - Secrets: redhat-sso-client-id, redhat-sso-client-secret, database-url,"
 echo "             session-database-url, dcr-initial-access-token, dcr-encryption-key,"
 echo "             rate-limit-redis-url"
 echo "  - Service accounts: $SERVICE_ACCOUNT"
@@ -161,8 +160,6 @@ fi
 log_info "Deleting secrets from Secret Manager..."
 
 secrets=(
-    "lightspeed-client-id"
-    "lightspeed-client-secret"
     "redhat-sso-client-id"
     "redhat-sso-client-secret"
     "database-url"

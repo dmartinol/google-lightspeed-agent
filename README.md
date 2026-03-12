@@ -183,13 +183,9 @@ See [Container Deployment](#container-deployment) for full details.
 
 #### Option 3: Development without MCP (Limited)
 
-If MCP credentials are not configured, the agent will start without tools (limited functionality):
+If the MCP server is not running, the agent will start without tools (limited functionality):
 
 ```bash
-# Unset MCP credentials to skip MCP connection
-unset LIGHTSPEED_CLIENT_ID
-unset LIGHTSPEED_CLIENT_SECRET
-
 # Run agent (will work but without Insights API access)
 adk web agents
 ```
@@ -203,29 +199,10 @@ See `.env.example` for all available configuration options.
 | Variable | Description |
 |----------|-------------|
 | `GOOGLE_API_KEY` | Google AI Studio API key |
-| `LIGHTSPEED_CLIENT_ID` | Red Hat Insights service account ID |
-| `LIGHTSPEED_CLIENT_SECRET` | Red Hat Insights service account secret |
 | `RED_HAT_SSO_CLIENT_ID` | OAuth client ID for Red Hat SSO |
 | `RED_HAT_SSO_CLIENT_SECRET` | OAuth client secret for Red Hat SSO |
 
 ### Obtaining Credentials
-
-#### Lightspeed Service Account (for MCP Server)
-
-The MCP server uses Lightspeed service account credentials to authenticate with console.redhat.com APIs. To obtain these:
-
-1. Go to [console.redhat.com](https://console.redhat.com)
-2. Navigate to **Settings** → **Integrations** → **Red Hat Lightspeed**
-3. Create a new service account
-4. Copy the **Client ID** and **Client Secret**
-
-These credentials allow the MCP server to access:
-- Advisor (system recommendations)
-- Inventory (registered systems)
-- Vulnerability (CVE information)
-- Remediations (playbook management)
-- Patch (system updates)
-- Image Builder (custom RHEL images)
 
 #### Red Hat SSO OAuth Credentials
 
@@ -320,7 +297,6 @@ The system is deployed as **three separate pods**:
 
 - Podman 4.0+
 - Access to Red Hat container registry (for RHEL-based images)
-- Red Hat Insights Lightspeed service account credentials
 - Google API key or Vertex AI access
 
 ### Build the Container Images
@@ -362,8 +338,6 @@ podman build -t localhost/a2a-inspector:latest /tmp/a2a-inspector
 
    **API Credentials:**
    - `GOOGLE_API_KEY`: Your Google AI Studio API key
-   - `LIGHTSPEED_CLIENT_ID`: Red Hat Insights service account ID
-   - `LIGHTSPEED_CLIENT_SECRET`: Red Hat Insights service account secret
    - `RED_HAT_SSO_CLIENT_ID`: OAuth client ID for Red Hat SSO
    - `RED_HAT_SSO_CLIENT_SECRET`: OAuth client secret for Red Hat SSO
 
@@ -455,14 +429,14 @@ for i in {1..70}; do
   code=$(curl -s -o /tmp/resp.json -w "%{http_code}" \
     -X POST http://localhost:8000/ \
     -H "Content-Type: application/json" \
-    -d '{"jsonrpc":"2.0","method":"message/send","id":"'$i'","params":{"message":{"role":"user","parts":[{"type":"text","text":"test"}]}}}')
+    -d '{"jsonrpc":"2.0","method":"message/send","id":"'$i'","params":{"message":{"messageId":"'$i'","role":"user","parts":[{"type":"text","text":"test"}]}}}')
   echo "$i -> $code"
 done
 
 # Inspect 429 details and headers
 curl -i -X POST http://localhost:8000/ \
   -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","method":"message/send","id":"x","params":{"message":{"role":"user","parts":[{"type":"text","text":"test"}]}}}'
+  -d '{"jsonrpc":"2.0","method":"message/send","id":"x","params":{"message":{"messageId":"x","role":"user","parts":[{"type":"text","text":"test"}]}}}'
 
 # Inspect Redis rate-limit keys
 podman exec -it lightspeed-redis-redis redis-cli KEYS "lightspeed:ratelimit:*"
@@ -548,6 +522,7 @@ curl -X POST http://localhost:8000/ \
     "method": "message/send",
     "params": {
       "message": {
+        "messageId": "1",
         "role": "user",
         "parts": [{"type": "text", "text": "Show my systems"}]
       }
@@ -860,12 +835,12 @@ This separation ensures:
 The MCP server runs as a sidecar container and provides tools for the agent to interact with Red Hat Insights APIs:
 
 1. **Agent receives a request** (e.g., "Show me my system vulnerabilities")
-2. **Agent calls MCP tools** via HTTP to the MCP server (localhost:8081), passing credentials in headers
-3. **MCP server authenticates** with console.redhat.com using the credentials from headers
+2. **Agent calls MCP tools** via HTTP to the MCP server (localhost:8081), forwarding the caller's JWT token in the Authorization header
+3. **MCP server authenticates** with console.redhat.com using the forwarded JWT token
 4. **MCP server calls Insights APIs** and returns results to the agent
 5. **Agent formats the response** and returns it to the user
 
-The Lightspeed credentials (`LIGHTSPEED_CLIENT_ID` and `LIGHTSPEED_CLIENT_SECRET`) are configured on the **agent** container, which passes them to the MCP server via HTTP headers on each request. The MCP server itself does not need credentials configured.
+The agent forwards the caller's JWT token to the MCP server via the `Authorization: Bearer` header on each request. The MCP server itself does not need credentials configured.
 
 ### Persistent Storage
 

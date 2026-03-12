@@ -1,6 +1,5 @@
 """Tests for Google Cloud Service Control integration."""
 
-import asyncio
 from datetime import datetime, timedelta
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
@@ -13,7 +12,7 @@ from lightspeed_agent.service_control.models import (
     ReportResponse,
     UsageReport,
 )
-from lightspeed_agent.service_control.reporter import ReportResult, UsageReporter
+from lightspeed_agent.service_control.reporter import UsageReporter
 from lightspeed_agent.service_control.scheduler import ReportingScheduler
 
 

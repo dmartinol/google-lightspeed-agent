@@ -56,25 +56,24 @@ The agent uses the [Red Hat Lightspeed MCP Server](https://github.com/RedHatInsi
 
 ## Credential Flow
 
-### Lightspeed Service Account
+### JWT Token Pass-Through
 
-The MCP server authenticates with console.redhat.com using a Lightspeed service account. This is a machine-to-machine authentication that doesn't require user interaction.
-
-**How to obtain credentials:**
-
-1. Log in to [console.redhat.com](https://console.redhat.com)
-2. Navigate to **Settings** → **Integrations** → **Red Hat Lightspeed**
-3. Click **Create service account**
-4. Copy the **Client ID** and **Client Secret**
+The agent forwards the caller's JWT token to the MCP server via the `Authorization: Bearer <token>` header. The MCP server uses this token to authenticate with console.redhat.com on behalf of the calling user.
 
 ### Environment Variables
 
-The MCP server requires these environment variables:
+The MCP server connection requires these environment variables on the agent:
 
 | Variable | Description |
 |----------|-------------|
-| `LIGHTSPEED_CLIENT_ID` | Service account client ID from console.redhat.com |
-| `LIGHTSPEED_CLIENT_SECRET` | Service account client secret |
+| `MCP_TRANSPORT_MODE` | Transport mode: `stdio`, `http`, or `sse` |
+| `MCP_SERVER_URL` | MCP server URL (for http/sse modes) |
+| `MCP_READ_ONLY` | Enable read-only mode (recommended: `true`) |
+
+The MCP server itself requires:
+
+| Variable | Description |
+|----------|-------------|
 | `MCP_SERVER_MODE` | Server mode: `http` for HTTP transport |
 | `MCP_SERVER_PORT` | Port to listen on (default: 8080) |
 | `READ_ONLY` | Enable read-only mode (recommended: `true`) |
@@ -82,23 +81,20 @@ The MCP server requires these environment variables:
 ### Authentication Flow
 
 ```
-1. MCP Server starts
+1. User sends request to Agent with Bearer token
    │
    ▼
-2. Receives tool call from Agent
+2. Agent receives tool call request
    │
    ▼
-3. Requests OAuth2 token from sso.redhat.com
-   │  using LIGHTSPEED_CLIENT_ID and LIGHTSPEED_CLIENT_SECRET
+3. Agent forwards caller's JWT token to MCP server
+   │  via Authorization: Bearer header
    │
    ▼
-4. Receives access token
+4. MCP server calls console.redhat.com API with the token
    │
    ▼
-5. Calls console.redhat.com API with Bearer token
-   │
-   ▼
-6. Returns results to Agent
+5. Returns results to Agent
 ```
 
 ## Transport Modes
@@ -142,8 +138,7 @@ MCP_TRANSPORT_MODE: stdio
 This mode runs the MCP server container using podman:
 
 ```bash
-podman run --env LIGHTSPEED_CLIENT_ID --env LIGHTSPEED_CLIENT_SECRET \
-  --interactive --rm ghcr.io/redhatinsights/red-hat-lightspeed-mcp:latest
+podman run --interactive --rm ghcr.io/redhatinsights/red-hat-lightspeed-mcp:latest
 ```
 
 ## Deployment Configuration
@@ -157,10 +152,6 @@ containers:
   - name: insights-mcp
     image: ghcr.io/redhatinsights/red-hat-lightspeed-mcp:latest
     env:
-      - name: LIGHTSPEED_CLIENT_ID
-        value: ${LIGHTSPEED_CLIENT_ID}
-      - name: LIGHTSPEED_CLIENT_SECRET
-        value: ${LIGHTSPEED_CLIENT_SECRET}
       - name: MCP_SERVER_MODE
         value: "http"
       - name: MCP_SERVER_PORT
@@ -185,17 +176,6 @@ containers:
 
   - name: insights-mcp
     image: ghcr.io/redhatinsights/red-hat-lightspeed-mcp:latest
-    env:
-      - name: LIGHTSPEED_CLIENT_ID
-        valueFrom:
-          secretKeyRef:
-            name: lightspeed-client-id
-            key: latest
-      - name: LIGHTSPEED_CLIENT_SECRET
-        valueFrom:
-          secretKeyRef:
-            name: lightspeed-client-secret
-            key: latest
 ```
 
 ## Available Tools
@@ -260,8 +240,8 @@ The MCP server provides these tools to the agent:
 
 ### Authentication Failures
 
-1. Verify Lightspeed credentials are correct
-2. Check if the service account is active in console.redhat.com
+1. Verify the caller's JWT token is valid and not expired
+2. Check if the user has access to the required Insights services
 3. Look for OAuth errors in MCP server logs:
    ```bash
    podman logs lightspeed-agent-pod-insights-mcp | grep -i auth
@@ -281,7 +261,7 @@ The MCP server provides these tools to the agent:
 
 ## Security Considerations
 
-1. **Credential Storage**: Store Lightspeed credentials securely (Secret Manager, Vault, etc.)
+1. **Token Security**: JWT tokens are forwarded per-request and not stored persistently
 2. **Read-Only Mode**: Enable `READ_ONLY=true` to prevent write operations
 3. **Network Isolation**: The MCP server only needs to reach console.redhat.com
-4. **Least Privilege**: Use service accounts with minimal required permissions
+4. **Least Privilege**: Ensure users have only the necessary permissions in console.redhat.com

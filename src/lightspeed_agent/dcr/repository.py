@@ -1,10 +1,9 @@
 """Repository for DCR registered clients with PostgreSQL persistence."""
 
 import logging
-from datetime import datetime
+from typing import Any
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from lightspeed_agent.db import DCRClientModel, get_session
 from lightspeed_agent.dcr.models import RegisteredClient
@@ -69,7 +68,7 @@ class DCRClientRepository:
         grant_types: list[str] | None = None,
         registration_access_token_encrypted: str | None = None,
         keycloak_client_uuid: str | None = None,
-        metadata: dict | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> RegisteredClient:
         """Create a new registered client.
 
@@ -100,7 +99,8 @@ class DCRClientRepository:
                 metadata_=metadata or {},
             )
             session.add(model)
-            await session.flush()  # Get the created_at timestamp
+            await session.flush()
+            await session.refresh(model)
 
             logger.info(
                 "Created DCR client: client_id=%s, order_id=%s",

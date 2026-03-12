@@ -1,9 +1,10 @@
 """Application settings and configuration management."""
 
+import os
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -53,14 +54,6 @@ class Settings(BaseSettings):
         description="OAuth client secret for Red Hat SSO",
     )
     # Red Hat Lightspeed MCP Configuration
-    lightspeed_client_id: str = Field(
-        default="",
-        description="Lightspeed service account client ID",
-    )
-    lightspeed_client_secret: str = Field(
-        default="",
-        description="Lightspeed service account client secret",
-    )
     mcp_transport_mode: Literal["stdio", "http", "sse"] = Field(
         default="stdio",
         description="MCP server transport mode",
@@ -100,13 +93,19 @@ class Settings(BaseSettings):
     # The marketplace handler is a separate service that handles DCR and Pub/Sub events
     marketplace_handler_url: str = Field(
         default="",
-        description="URL of the marketplace handler service for DCR. If empty, uses agent_provider_url.",
+        description=(
+            "URL of the marketplace handler service for DCR."
+            " If empty, uses agent_provider_url."
+        ),
     )
 
     # Google Cloud Service Control
     service_control_service_name: str = Field(
         default="",
-        description="Service name for Google Cloud Service Control (e.g., myservice.gcpmarketplace.example.com)",
+        description=(
+            "Service name for Google Cloud Service Control"
+            " (e.g., myservice.gcpmarketplace.example.com)"
+        ),
     )
     service_control_enabled: bool = Field(
         default=True,
@@ -161,7 +160,10 @@ class Settings(BaseSettings):
     # DCR (Dynamic Client Registration) Configuration
     dcr_enabled: bool = Field(
         default=True,
-        description="Enable real DCR with Red Hat SSO (Keycloak). When disabled, uses pre-seeded credentials from the database.",
+        description=(
+            "Enable real DCR with Red Hat SSO (Keycloak)."
+            " When disabled, uses pre-seeded credentials from the database."
+        ),
     )
     dcr_initial_access_token: str = Field(
         default="",
@@ -173,7 +175,12 @@ class Settings(BaseSettings):
     )
     dcr_encryption_key: str = Field(
         default="",
-        description="Fernet encryption key for DCR client secrets (generate with: python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')",
+        description=(
+            "Fernet encryption key for DCR client secrets"
+            " (generate with: python -c"
+            " 'from cryptography.fernet import Fernet;"
+            " print(Fernet.generate_key().decode())')"
+        ),
     )
 
     # Database Configuration
@@ -181,7 +188,10 @@ class Settings(BaseSettings):
     # This is shared between the marketplace handler and agent for order validation
     database_url: str = Field(
         default="sqlite+aiosqlite:///./lightspeed_agent.db",
-        description="Marketplace database URL (PostgreSQL for production). Stores accounts, entitlements, DCR clients.",
+        description=(
+            "Marketplace database URL (PostgreSQL for production)."
+            " Stores accounts, entitlements, DCR clients."
+        ),
     )
     database_pool_size: int = Field(
         default=5,
@@ -196,7 +206,11 @@ class Settings(BaseSettings):
     # Separate from marketplace DB for security isolation - each agent can have its own
     session_database_url: str = Field(
         default="",
-        description="Session database URL for ADK sessions. If empty, uses DATABASE_URL. For security isolation, use a separate database.",
+        description=(
+            "Session database URL for ADK sessions."
+            " If empty, uses DATABASE_URL."
+            " For security isolation, use a separate database."
+        ),
     )
 
     # Agent required scope for token introspection
@@ -241,6 +255,21 @@ class Settings(BaseSettings):
         description="Skip JWT validation (development only)",
     )
 
+    @model_validator(mode="after")
+    def _block_skip_jwt_in_production(self) -> "Settings":
+        """Prevent SKIP_JWT_VALIDATION from being enabled in production.
+
+        Cloud Run sets K_SERVICE automatically. If that variable is present,
+        this is a managed deployment and JWT validation must never be skipped.
+        """
+        if self.skip_jwt_validation and os.getenv("K_SERVICE"):
+            raise ValueError(
+                "SKIP_JWT_VALIDATION=true is not allowed in Cloud Run "
+                f"(K_SERVICE={os.getenv('K_SERVICE')}). "
+                "This setting is intended for local development only."
+            )
+        return self
+
     # OpenTelemetry Configuration
     otel_enabled: bool = Field(
         default=False,
@@ -262,7 +291,14 @@ class Settings(BaseSettings):
         default="otlp",
         description="Telemetry exporter type",
     )
-    otel_traces_sampler: Literal["always_on", "always_off", "traceidratio", "parentbased_always_on", "parentbased_always_off", "parentbased_traceidratio"] = Field(
+    otel_traces_sampler: Literal[
+        "always_on",
+        "always_off",
+        "traceidratio",
+        "parentbased_always_on",
+        "parentbased_always_off",
+        "parentbased_traceidratio",
+    ] = Field(
         default="always_on",
         description="Trace sampling strategy",
     )

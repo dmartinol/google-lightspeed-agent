@@ -2,6 +2,7 @@
 
 import logging
 import os
+from typing import Any
 
 from google.adk.agents import LlmAgent
 
@@ -10,8 +11,9 @@ from lightspeed_agent.config import get_settings
 logger = logging.getLogger(__name__)
 
 # Agent instruction describing its capabilities
-AGENT_INSTRUCTION = """You are the Red Hat Lightspeed Agent for Google Cloud, an AI assistant specialized in
-helping users manage their Red Hat infrastructure. You have access to the following
+AGENT_INSTRUCTION = """You are the Red Hat Lightspeed Agent for Google Cloud, \
+an AI assistant specialized in helping users manage their Red Hat infrastructure. \
+You have access to the following
 Red Hat Insights capabilities:
 
 ## Advisor
@@ -82,9 +84,8 @@ def create_agent() -> LlmAgent:
     """Create the Lightspeed Agent with MCP tools.
 
     This function creates an LlmAgent with the Red Hat Lightspeed MCP toolset.
-    Credentials for MCP are resolved dynamically per-request using a header_provider:
-    1. First, from the user's JWT claims (lightspeed_client_id/secret)
-    2. Fallback to agent-level credentials from environment variables
+    The caller's JWT token is forwarded to the MCP server via a header_provider
+    so the MCP server can authenticate on behalf of the calling user.
 
     Returns:
         Configured LlmAgent instance.
@@ -92,20 +93,18 @@ def create_agent() -> LlmAgent:
     _setup_environment()
     settings = get_settings()
 
-    tools: list = []
+    tools: list[Any] = []
 
-    # Always attempt to create MCP toolset - credentials are resolved dynamically
     try:
         from lightspeed_agent.tools import READ_ONLY_TOOLS, create_insights_toolset
 
         logger.info(
             f"Creating MCP toolset with transport={settings.mcp_transport_mode}, "
-            f"url={settings.mcp_server_url}, dynamic_headers=True"
+            f"url={settings.mcp_server_url}"
         )
         tool_filter = READ_ONLY_TOOLS if settings.mcp_read_only else None
         mcp_toolset = create_insights_toolset(
             tool_filter=tool_filter,
-            use_dynamic_headers=True,
         )
         tools = [mcp_toolset]
         logger.info(

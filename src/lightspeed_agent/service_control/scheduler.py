@@ -1,9 +1,11 @@
 """Scheduler for periodic usage reporting."""
 
 import asyncio
+import contextlib
 import logging
+from collections.abc import Callable
 from datetime import datetime, timedelta
-from typing import Callable
+from typing import Any
 
 from lightspeed_agent.service_control.reporter import UsageReporter, get_usage_reporter
 
@@ -37,8 +39,8 @@ class ReportingScheduler:
         self._retry_interval = retry_interval_seconds
 
         # Task handles
-        self._hourly_task: asyncio.Task | None = None
-        self._retry_task: asyncio.Task | None = None
+        self._hourly_task: asyncio.Task[None] | None = None
+        self._retry_task: asyncio.Task[None] | None = None
 
         # State
         self._running = False
@@ -174,17 +176,13 @@ class ReportingScheduler:
         # Cancel tasks
         if self._hourly_task:
             self._hourly_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._hourly_task
-            except asyncio.CancelledError:
-                pass
 
         if self._retry_task:
             self._retry_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._retry_task
-            except asyncio.CancelledError:
-                pass
 
         logger.info("Scheduler stopped")
 
@@ -193,7 +191,7 @@ class ReportingScheduler:
         logger.info("Running immediate usage report")
         await self._reporter.run_hourly_cycle()
 
-    def get_status(self) -> dict:
+    def get_status(self) -> dict[str, Any]:
         """Get scheduler status.
 
         Returns:

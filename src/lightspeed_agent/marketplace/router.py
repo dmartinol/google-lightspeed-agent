@@ -48,8 +48,8 @@ async def hybrid_dcr_handler(request: Request) -> JSONResponse:
     """
     try:
         body = await request.json()
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid JSON body")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="Invalid JSON body") from e
 
     # Route based on request content
     if "software_statement" in body:
@@ -201,7 +201,7 @@ def _build_procurement_event(
     if account_id:
         account_info = AccountInfo(
             id=account_id,
-            update_time=account_data.get("updateTime"),
+            update_time=account_data.get("updateTime"),  # type: ignore[call-arg]
         )
 
     # Extract entitlement info (multiple possible locations)
@@ -217,7 +217,7 @@ def _build_procurement_event(
 
     entitlement_info = None
     if entitlement_id:
-        entitlement_info = EntitlementInfo(
+        entitlement_info = EntitlementInfo(  # type: ignore[call-arg]
             id=entitlement_id,
             new_plan=entitlement_data.get("newPlan") or entitlement_data.get("plan"),
             previous_plan=entitlement_data.get("previousPlan"),
@@ -227,7 +227,7 @@ def _build_procurement_event(
             update_time=entitlement_data.get("updateTime"),
         )
 
-    return ProcurementEvent(
+    return ProcurementEvent(  # type: ignore[call-arg]
         event_id=event_id,
         event_type=event_type,
         provider_id=provider_id,

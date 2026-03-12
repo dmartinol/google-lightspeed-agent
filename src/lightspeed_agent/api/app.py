@@ -9,7 +9,9 @@ marketplace-handler service. See lightspeed_agent.marketplace.
 """
 
 import logging
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import Any
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Application lifespan manager for startup/shutdown events."""
     settings = get_settings()
 
@@ -111,13 +113,13 @@ def create_app() -> FastAPI:
 
     # Health check endpoint
     @app.get("/health")
-    async def health_check() -> dict:
+    async def health_check() -> dict[str, str]:
         """Health check endpoint."""
         return {"status": "healthy", "agent": settings.agent_name}
 
     # Ready check endpoint
     @app.get("/ready")
-    async def ready_check() -> dict:
+    async def ready_check() -> dict[str, str]:
         """Readiness check endpoint."""
         return {"status": "ready", "agent": settings.agent_name}
 
@@ -131,7 +133,7 @@ def create_app() -> FastAPI:
 
     # Alias for agent card (some clients use agent-card.json)
     @app.get("/.well-known/agent-card.json")
-    async def agent_card_alias() -> dict:
+    async def agent_card_alias() -> dict[str, Any]:
         """AgentCard endpoint (alias for agent.json)."""
         return get_agent_card_dict()
 

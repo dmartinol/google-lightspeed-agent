@@ -62,7 +62,7 @@ The deployment consists of **two separate Cloud Run services** plus **Cloud Memo
 2. **Deploy Marketplace Handler first** - Must be running to receive provisioning events
 3. **Deploy Agent after provisioning** - Can be deployed when customers are ready to use the agent
 
-The MCP server runs as a sidecar in the Agent service. The agent forwards the caller's JWT token to the MCP server, which uses it to authenticate with console.redhat.com on behalf of the user. Alternatively, if Lightspeed service account credentials are configured, the agent sends those instead (see [MCP Authentication](#mcp-authentication)).
+The MCP server runs as a sidecar in the Agent service. The agent forwards the caller's JWT token to the MCP server, which uses it to authenticate with console.redhat.com on behalf of the user (see [MCP Authentication](#mcp-authentication)).
 
 ## Service Accounts
 
@@ -551,21 +551,11 @@ When the agent needs to access Insights data (e.g., system vulnerabilities, reco
 
 ### MCP Authentication
 
-The agent supports two modes for authenticating with the MCP server, determined
-by whether Lightspeed credentials are configured:
-
-| Mode | When | Headers sent to MCP |
-|------|------|---------------------|
-| **JWT pass-through** (default) | `LIGHTSPEED_CLIENT_ID/SECRET` not set | `Authorization: Bearer <caller's token>` |
-| **Lightspeed credentials** | `LIGHTSPEED_CLIENT_ID/SECRET` set | `lightspeed-client-id` + `lightspeed-client-secret` |
-
-**JWT pass-through** is the recommended mode. The caller's Red Hat SSO token
-is forwarded to the MCP server, which uses it to call console.redhat.com APIs
-on behalf of the user.
+The agent forwards the caller's JWT token to the MCP server via the
+`Authorization: Bearer` header. The MCP server uses this token to call
+console.redhat.com APIs on behalf of the user.
 
 ### Credential Flow
-
-**Mode A: JWT pass-through (default)**
 
 ```
 Client                     Agent                   MCP Server        console.redhat.com
@@ -574,7 +564,7 @@ Client                     Agent                   MCP Server        console.red
   │  Authorization: Bearer T │                         │                     │
   ├─────────────────────────►│                         │                     │
   │                          │  MCP tool call          │                     │
-  │                          │  Authorization: Bearer T|                     │
+  │                          │  Authorization: Bearer T│                     │
   │                          ├────────────────────────►│                     │
   │                          │                         │  API Request + T    │
   │                          │                         ├────────────────────►│
@@ -584,24 +574,6 @@ Client                     Agent                   MCP Server        console.red
   │                          │◄────────────────────────┤                     │
   │  A2A Response            │                         │                     │
   │◄─────────────────────────┤                         │                     │
-```
-
-**Mode B: Lightspeed credentials (optional)**
-
-```
-Secret Manager                    MCP Server              console.redhat.com
-     │                               │                           │
-     │  LIGHTSPEED_CLIENT_ID         │                           │
-     │  LIGHTSPEED_CLIENT_SECRET     │                           │
-     ├──────────────────────────────►│                           │
-     │                               │   OAuth2 Token Request    │
-     │                               ├──────────────────────────►│
-     │                               │   Access Token            │
-     │                               │◄──────────────────────────┤
-     │                               │   API Request + Token     │
-     │                               ├──────────────────────────►│
-     │                               │   API Response            │
-     │                               │◄──────────────────────────┤
 ```
 
 ## Authentication
@@ -635,7 +607,7 @@ Bearer token that is active and carries the `agent:insights` scope.
      │                 ├───────────────────►│                   │                     │
      │                 │                    │                   │                     │
      │                 │ 5. MCP tool call   │                   │                     │
-     │                 │  + Bearer token (or Lightspeed creds)  │                     │
+     │                 │  + Bearer token    │                   │                     │
      │                 ├───────────────────────────────────────►│                     │
      │                 │                    │                   │ 6. Insights API     │
      │                 │                    │                   │    (using token)    │
@@ -650,7 +622,7 @@ Bearer token that is active and carries the `agent:insights` scope.
 
 **Credential sets:**
 - **Red Hat SSO credentials** (`RED_HAT_SSO_CLIENT_ID/SECRET`): Used by the agent as Resource Server credentials for token introspection (step 4)
-- **MCP authentication** (step 5): By default the caller's Bearer token is forwarded. If `LIGHTSPEED_CLIENT_ID/SECRET` are configured, those are sent instead (see [MCP Authentication](#mcp-authentication))
+- **MCP authentication** (step 5): The caller's Bearer token is forwarded to the MCP server (see [MCP Authentication](#mcp-authentication))
 
 ### Configuration
 

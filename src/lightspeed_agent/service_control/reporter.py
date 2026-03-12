@@ -23,7 +23,7 @@ class ReportResult(BaseModel):
     order_id: str = Field(..., description="Order ID")
     consumer_id: str = Field(..., description="Consumer ID")
     success: bool = Field(..., description="Whether report succeeded")
-    error_message: str | None = Field(None, description="Error if failed")
+    error_message: str | None = Field(default=None, description="Error if failed")
     metrics_reported: dict[str, int] = Field(
         default_factory=dict, description="Metrics that were reported"
     )
@@ -124,7 +124,7 @@ class UsageReporter:
                 mapped[google_name] = value
         return mapped
 
-    def _aggregate_metrics_from_rows(self, rows: list) -> dict[str, int]:
+    def _aggregate_metrics_from_rows(self, rows: list[Any]) -> dict[str, int]:
         """Aggregate metrics from claimed usage rows."""
         if not rows:
             return {}
@@ -341,7 +341,7 @@ class UsageReporter:
             )
 
         results = await self.report_hourly()
-        
+
         backfill_results = await self.report_backfill()
         if backfill_results:
             logger.info(

@@ -4,10 +4,8 @@ Uses PostgreSQL via SQLAlchemy for persistence.
 """
 
 import logging
-from datetime import datetime
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from lightspeed_agent.db import (
     MarketplaceAccountModel,
@@ -68,6 +66,7 @@ class AccountRepository:
             )
             session.add(model)
             await session.flush()
+            await session.refresh(model)
             logger.info("Created account: %s", account.id)
             return self._model_to_entity(model)
 
@@ -187,6 +186,7 @@ class EntitlementRepository:
             )
             session.add(model)
             await session.flush()
+            await session.refresh(model)
 
             logger.info(
                 "Created entitlement: %s (account=%s)",

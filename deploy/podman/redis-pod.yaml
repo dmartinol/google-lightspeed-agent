@@ -19,6 +19,7 @@ spec:
     - name: redis
       image: quay.io/fedora/redis-7
       args:
+        - "run-redis"
         - "--appendonly"
         - "yes"
       ports:

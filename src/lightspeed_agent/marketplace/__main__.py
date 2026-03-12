@@ -5,13 +5,9 @@ import os
 
 import uvicorn
 
-from lightspeed_agent.config import get_settings
 
-
-def main():
+def main() -> None:
     """Run the Marketplace Handler service."""
-    settings = get_settings()
-
     # Configure logging
     log_level = os.getenv("LOG_LEVEL", "INFO").upper()
     log_format = os.getenv("LOG_FORMAT", "text")
@@ -19,7 +15,10 @@ def main():
     if log_format == "json":
         logging.basicConfig(
             level=log_level,
-            format='{"time": "%(asctime)s", "level": "%(levelname)s", "logger": "%(name)s", "message": "%(message)s"}',
+            format=(
+                '{"time": "%(asctime)s", "level": "%(levelname)s",'
+                ' "logger": "%(name)s", "message": "%(message)s"}'
+            ),
         )
     else:
         logging.basicConfig(

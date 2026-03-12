@@ -8,8 +8,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from lightspeed_agent.auth.dependencies import CurrentUser, require_scope
-from lightspeed_agent.service_control.reporter import ReportResult, UsageReporter, get_usage_reporter
-from lightspeed_agent.service_control.scheduler import ReportingScheduler, get_reporting_scheduler
+from lightspeed_agent.service_control.reporter import (
+    get_usage_reporter,
+)
+from lightspeed_agent.service_control.scheduler import get_reporting_scheduler
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +74,7 @@ async def get_status(
         return SchedulerStatus(**status)
     except Exception as e:
         logger.error("Failed to get scheduler status: %s", e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post(
@@ -119,7 +121,7 @@ async def trigger_report(
         )
     except Exception as e:
         logger.error("Failed to trigger report: %s", e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post(
@@ -166,7 +168,7 @@ async def trigger_all_reports(
         ]
     except Exception as e:
         logger.error("Failed to trigger all reports: %s", e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post(
@@ -203,4 +205,4 @@ async def trigger_retry(
         ]
     except Exception as e:
         logger.error("Failed to trigger retry: %s", e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e

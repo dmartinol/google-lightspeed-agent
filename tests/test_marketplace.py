@@ -73,7 +73,7 @@ class TestAccountRepository:
     """Tests for account repository."""
 
     @pytest.fixture
-    def repo(self):
+    def repo(self, db_session):
         """Create a fresh repository."""
         return AccountRepository()
 
@@ -141,7 +141,7 @@ class TestEntitlementRepository:
     """Tests for entitlement repository."""
 
     @pytest.fixture
-    def repo(self):
+    def repo(self, db_session):
         """Create a fresh repository."""
         return EntitlementRepository()
 
@@ -165,7 +165,7 @@ class TestProcurementService:
     """Tests for procurement service."""
 
     @pytest.fixture
-    def service(self):
+    def service(self, db_session):
         """Create a fresh service."""
         return ProcurementService(
             account_repo=AccountRepository(),
