@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
@@ -81,7 +82,7 @@ class TokenIntrospector:
     # Internals
     # ------------------------------------------------------------------
 
-    async def _introspect(self, token: str) -> dict:
+    async def _introspect(self, token: str) -> dict[str, Any]:
         """POST to the introspection endpoint."""
         try:
             async with httpx.AsyncClient() as client:
@@ -102,7 +103,8 @@ class TokenIntrospector:
                     f"Introspection request failed (HTTP {response.status_code})"
                 )
 
-            return response.json()
+            result: dict[str, Any] = response.json()
+            return result
 
         except httpx.RequestError as exc:
             logger.exception("HTTP error calling introspection endpoint: %s", exc)
@@ -111,11 +113,11 @@ class TokenIntrospector:
             ) from exc
 
     @staticmethod
-    def _parse_scopes(data: dict) -> list[str]:
+    def _parse_scopes(data: dict[str, Any]) -> list[str]:
         scope_str = data.get("scope", "")
         return scope_str.split() if scope_str else []
 
-    def _to_user(self, data: dict, scopes: list[str]) -> AuthenticatedUser:
+    def _to_user(self, data: dict[str, Any], scopes: list[str]) -> AuthenticatedUser:
         """Map an introspection response to an AuthenticatedUser."""
         # client_id: azp (authorized party) or client_id field
         client_id = data.get("azp") or data.get("client_id", "")

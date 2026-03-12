@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import copy
 import sys
+from typing import Any
 
 from google.adk.tools.mcp_tool import McpToolset
 
@@ -29,7 +30,7 @@ print("[schema_sanitizer] module loading...", file=sys.stderr, flush=True)
 # Helper: recursively add missing ``type`` fields
 # ---------------------------------------------------------------------------
 
-def _deep_sanitize_schema(schema):
+def _deep_sanitize_schema(schema: dict[str, Any] | Any) -> None:
     """Walk a JSON schema dict and add ``type`` wherever it is missing."""
     if not isinstance(schema, dict):
         return
@@ -46,9 +47,7 @@ def _deep_sanitize_schema(schema):
             schema["type"] = "object"
         elif "items" in schema:
             schema["type"] = "array"
-        elif "enum" in schema:
-            schema["type"] = "string"
-        elif schema:
+        elif "enum" in schema or schema:
             schema["type"] = "string"
 
     # Recurse into properties
@@ -81,7 +80,7 @@ class SanitizedMcpToolset(McpToolset):
     the ADK's ``_to_gemini_schema()`` pipeline which drops missing types.
     """
 
-    async def get_tools(self, *args, **kwargs):
+    async def get_tools(self, *args: Any, **kwargs: Any) -> Any:
         from google.genai.types import FunctionDeclaration
 
         tools = await super().get_tools(*args, **kwargs)
@@ -92,8 +91,8 @@ class SanitizedMcpToolset(McpToolset):
 
         for tool in tools:
             # Build a replacement _get_declaration that bypasses _to_gemini_schema
-            def _make_declaration_fn(t):
-                def _get_declaration():
+            def _make_declaration_fn(t: Any) -> Any:
+                def _get_declaration() -> Any:
                     schema = copy.deepcopy(t._mcp_tool.inputSchema)
                     if schema:
                         _deep_sanitize_schema(schema)

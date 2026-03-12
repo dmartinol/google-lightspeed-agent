@@ -1,8 +1,8 @@
 """Tests for A2A protocol implementation."""
 
-import pytest
-from fastapi.testclient import TestClient
+from unittest.mock import AsyncMock, patch
 
+import pytest
 from a2a.types import (
     AgentCapabilities,
     AgentSkill,
@@ -12,6 +12,7 @@ from a2a.types import (
     TaskStatus,
     TextPart,
 )
+from fastapi.testclient import TestClient
 
 from lightspeed_agent.api.a2a.agent_card import build_agent_card, get_agent_card_dict
 from lightspeed_agent.api.app import create_app
@@ -165,9 +166,27 @@ class TestA2AEndpoints:
 
     @pytest.fixture
     def client(self):
-        """Create test client."""
-        app = create_app()
-        return TestClient(app)
+        """Create test client with rate limiter mocked out."""
+        mock_limiter = AsyncMock()
+        mock_limiter.is_allowed = AsyncMock(
+            return_value=(True, {
+                "requests_this_minute": 1,
+                "requests_this_hour": 1,
+                "limit_per_minute": 60,
+                "limit_per_hour": 1000,
+                "exceeded": "ok",
+                "retry_after": 0,
+                "limited_principal": "none",
+            })
+        )
+        # Reset the global singleton so the mock is picked up
+        import lightspeed_agent.ratelimit.middleware as rl_mod
+
+        rl_mod._rate_limiter = None
+        with patch.object(rl_mod, "get_redis_rate_limiter", return_value=mock_limiter):
+            app = create_app()
+            yield TestClient(app)
+        rl_mod._rate_limiter = None
 
     def test_agent_card_endpoint(self, client):
         """Test /.well-known/agent.json endpoint."""
@@ -202,6 +221,7 @@ class TestA2AEndpoints:
             "method": "message/send",
             "params": {
                 "message": {
+                    "messageId": "msg-1",
                     "role": "user",
                     "parts": [{"type": "text", "text": "Hello!"}],
                 },

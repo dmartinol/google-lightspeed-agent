@@ -1,11 +1,14 @@
 """Usage tracking plugin with per-order metrics."""
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
+from google.adk.agents.callback_context import CallbackContext
+from google.adk.agents.invocation_context import InvocationContext
 from google.adk.models.llm_response import LlmResponse
 from google.adk.plugins.base_plugin import BasePlugin
 from google.adk.tools.base_tool import BaseTool
+from google.adk.tools.tool_context import ToolContext
 
 from lightspeed_agent.auth.middleware import get_request_order_id
 from lightspeed_agent.metering import get_usage_repository
@@ -21,11 +24,11 @@ def _resolve_order_id() -> str | None:
 class UsageTrackingPlugin(BasePlugin):
     """ADK Plugin for tracking per-order usage."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(name="usage_tracking")
         self._usage_repo = get_usage_repository()
 
-    async def before_run_callback(self, *, invocation_context) -> None:
+    async def before_run_callback(self, *, invocation_context: InvocationContext) -> None:
         """Track request count at start of each run."""
         order_id = _resolve_order_id()
         if not order_id:
@@ -38,9 +41,9 @@ class UsageTrackingPlugin(BasePlugin):
     async def after_model_callback(
         self,
         *,
-        callback_context,
+        callback_context: CallbackContext,
         llm_response: LlmResponse,
-    ) -> Optional[LlmResponse]:
+    ) -> LlmResponse | None:
         """Track token usage from LLM responses."""
         if llm_response.usage_metadata:
             order_id = _resolve_order_id()
@@ -71,9 +74,9 @@ class UsageTrackingPlugin(BasePlugin):
         *,
         tool: BaseTool,
         tool_args: dict[str, Any],
-        tool_context,
-        result: dict,
-    ) -> Optional[dict]:
+        tool_context: ToolContext,
+        result: dict[str, Any],
+    ) -> dict[str, Any] | None:
         """Track tool/MCP calls."""
         order_id = _resolve_order_id()
         if not order_id:

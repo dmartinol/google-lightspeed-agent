@@ -1,5 +1,7 @@
 """AgentCard builder for the Lightspeed Agent using a2a-sdk."""
 
+from typing import Any
+
 from a2a.types import (
     AgentCapabilities,
     AgentCard,
@@ -10,6 +12,7 @@ from a2a.types import (
     ClientCredentialsOAuthFlow,
     OAuth2SecurityScheme,
     OAuthFlows,
+    SecurityScheme,
 )
 
 from lightspeed_agent.config import get_settings
@@ -132,7 +135,7 @@ def build_agent_card() -> AgentCard:
         capabilities=capabilities,
         skills=skills,
         security_schemes={
-            "redhat_sso": oauth_scheme,
+            "redhat_sso": SecurityScheme(root=oauth_scheme),
         },
         security=[
             {"redhat_sso": ["openid", "agent:insights"]},
@@ -144,7 +147,7 @@ def build_agent_card() -> AgentCard:
     return agent_card
 
 
-def get_agent_card_dict() -> dict:
+def get_agent_card_dict() -> dict[str, Any]:
     """Get the AgentCard as a dictionary for JSON serialization.
 
     Returns:

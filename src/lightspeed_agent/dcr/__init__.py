@@ -7,6 +7,13 @@ DCR endpoints are served by the marketplace handler service.
 See lightspeed_agent.marketplace.router for the actual routing.
 """
 
+from lightspeed_agent.dcr.google_jwt import GoogleJWTValidator, get_google_jwt_validator
+from lightspeed_agent.dcr.keycloak_client import (
+    KeycloakClientResponse,
+    KeycloakDCRClient,
+    KeycloakDCRError,
+    get_keycloak_dcr_client,
+)
 from lightspeed_agent.dcr.models import (
     DCRError,
     DCRErrorCode,
@@ -14,13 +21,6 @@ from lightspeed_agent.dcr.models import (
     DCRResponse,
     GoogleJWTClaims,
     RegisteredClient,
-)
-from lightspeed_agent.dcr.google_jwt import GoogleJWTValidator, get_google_jwt_validator
-from lightspeed_agent.dcr.keycloak_client import (
-    KeycloakClientResponse,
-    KeycloakDCRClient,
-    KeycloakDCRError,
-    get_keycloak_dcr_client,
 )
 from lightspeed_agent.dcr.repository import DCRClientRepository, get_dcr_client_repository
 from lightspeed_agent.dcr.service import DCRService, get_dcr_service

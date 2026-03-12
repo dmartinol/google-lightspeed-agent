@@ -55,7 +55,7 @@ python -c "from lightspeed_agent.config import get_settings; print(get_settings(
 | Error | Cause | Solution |
 |-------|-------|----------|
 | `ValidationError: google_api_key` | Missing API key | Set `GOOGLE_API_KEY` |
-| `ValidationError: lightspeed_client_id` | Missing MCP credentials | Set `LIGHTSPEED_CLIENT_ID` |
+| `MCP connection failed` | MCP server not reachable | Check `MCP_SERVER_URL` and MCP server status |
 | `Connection refused` | Database not running | Start PostgreSQL |
 
 ### Port Already in Use
@@ -207,15 +207,15 @@ curl -X POST "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-fla
 # Test MCP server (if using HTTP transport)
 curl http://localhost:8080/health
 
-# Check MCP credentials
-echo $LIGHTSPEED_CLIENT_ID
+# Check MCP server URL
+echo $MCP_SERVER_URL
 ```
 
 **Common Causes**:
 
 | Issue | Cause | Solution |
 |-------|-------|----------|
-| `Authentication failed` | Invalid credentials | Check LIGHTSPEED_* vars |
+| `Authentication failed` | Invalid or expired JWT token | Ensure the caller has a valid Bearer token |
 | `Connection refused` | MCP server not running | Start MCP server |
 | `Timeout` | Network/server issues | Increase timeout |
 

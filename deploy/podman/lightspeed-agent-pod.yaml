@@ -12,10 +12,9 @@
 #   1. Start marketplace-handler pod FIRST (contains PostgreSQL)
 #   2. Then start this pod (connects to PostgreSQL via network)
 #
-# MCP authentication (two modes, determined by whether Lightspeed credentials
-# are present in the secret):
-#   - Lightspeed credentials set: agent sends lightspeed-client-id/secret headers
-#   - Lightspeed credentials absent: agent forwards the caller's JWT token
+# MCP authentication: the agent forwards the caller's JWT token to the MCP
+# server via the Authorization header. The MCP server uses this token to
+# authenticate with console.redhat.com on behalf of the calling user.
 # The agent connects to the MCP server over HTTP to access Insights tools
 # (Advisor, Inventory, Vulnerability, etc.).
 #
@@ -103,18 +102,6 @@ spec:
             secretKeyRef:
               name: lightspeed-agent-secrets
               key: RED_HAT_SSO_CLIENT_SECRET
-        #- name: LIGHTSPEED_CLIENT_ID
-        #  valueFrom:
-        #    secretKeyRef:
-        #      name: lightspeed-agent-secrets
-        #      key: LIGHTSPEED_CLIENT_ID
-        #      optional: true
-        #- name: LIGHTSPEED_CLIENT_SECRET
-        #  valueFrom:
-        #    secretKeyRef:
-        #      name: lightspeed-agent-secrets
-        #      key: LIGHTSPEED_CLIENT_SECRET
-        #      optional: true
         - name: DCR_INITIAL_ACCESS_TOKEN
           valueFrom:
             secretKeyRef:

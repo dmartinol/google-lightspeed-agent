@@ -1,7 +1,7 @@
 """OpenTelemetry setup and configuration."""
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from opentelemetry import trace
 from opentelemetry.sdk.resources import Resource
@@ -41,7 +41,7 @@ def _get_sampler(sampler_type: str, sampler_arg: float) -> "Sampler":
         return ALWAYS_ON
 
 
-def _create_exporter(exporter_type: str, otlp_endpoint: str, otlp_http_endpoint: str):
+def _create_exporter(exporter_type: str, otlp_endpoint: str, otlp_http_endpoint: str) -> Any:
     """Create the appropriate span exporter based on configuration."""
     if exporter_type == "console":
         return ConsoleSpanExporter()
@@ -54,7 +54,7 @@ def _create_exporter(exporter_type: str, otlp_endpoint: str, otlp_http_endpoint:
         return OTLPSpanExporter(endpoint=otlp_endpoint)
 
     elif exporter_type == "otlp-http":
-        from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
+        from opentelemetry.exporter.otlp.proto.http.trace_exporter import (  # type: ignore[assignment]
             OTLPSpanExporter,
         )
 
@@ -67,7 +67,8 @@ def _create_exporter(exporter_type: str, otlp_endpoint: str, otlp_http_endpoint:
             return JaegerExporter()
         except ImportError:
             logger.error(
-                "Jaeger exporter not installed. Install with: pip install opentelemetry-exporter-jaeger"
+                "Jaeger exporter not installed."
+                " Install with: pip install opentelemetry-exporter-jaeger"
             )
             raise
 
@@ -78,7 +79,8 @@ def _create_exporter(exporter_type: str, otlp_endpoint: str, otlp_http_endpoint:
             return ZipkinExporter()
         except ImportError:
             logger.error(
-                "Zipkin exporter not installed. Install with: pip install opentelemetry-exporter-zipkin"
+                "Zipkin exporter not installed."
+                " Install with: pip install opentelemetry-exporter-zipkin"
             )
             raise
 

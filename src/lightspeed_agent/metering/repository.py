@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -67,7 +68,7 @@ class UsageRepository:
 
     async def _increment_usage_atomic(
         self,
-        session,
+        session: Any,
         order_id: str,
         period_start: datetime,
         period_end: datetime,
@@ -95,10 +96,18 @@ class UsageRepository:
             index_where=UsageRecordModel.reported.is_(False)
             & UsageRecordModel.reporting_started_at.is_(None),
             set_={
-                UsageRecordModel.request_count: UsageRecordModel.request_count + stmt.excluded.request_count,
-                UsageRecordModel.input_tokens: UsageRecordModel.input_tokens + stmt.excluded.input_tokens,
-                UsageRecordModel.output_tokens: UsageRecordModel.output_tokens + stmt.excluded.output_tokens,
-                UsageRecordModel.tool_calls: UsageRecordModel.tool_calls + stmt.excluded.tool_calls,
+                UsageRecordModel.request_count: (
+                    UsageRecordModel.request_count + stmt.excluded.request_count
+                ),
+                UsageRecordModel.input_tokens: (
+                    UsageRecordModel.input_tokens + stmt.excluded.input_tokens
+                ),
+                UsageRecordModel.output_tokens: (
+                    UsageRecordModel.output_tokens + stmt.excluded.output_tokens
+                ),
+                UsageRecordModel.tool_calls: (
+                    UsageRecordModel.tool_calls + stmt.excluded.tool_calls
+                ),
                 UsageRecordModel.client_id: func.coalesce(
                     UsageRecordModel.client_id,
                     stmt.excluded.client_id,
@@ -109,7 +118,7 @@ class UsageRepository:
 
     async def _increment_usage_fallback(
         self,
-        session,
+        session: Any,
         order_id: str,
         period_start: datetime,
         period_end: datetime,
@@ -226,7 +235,7 @@ class UsageRepository:
                 )
             )
             result = await session.execute(stmt)
-            return int(result.rowcount or 0)
+            return int(result.rowcount or 0)  # type: ignore[attr-defined]
 
     async def release_claimed_rows(self, ids: list[int]) -> int:
         """Release claimed rows on report failure. Clears reporting_started_at."""
@@ -240,7 +249,7 @@ class UsageRepository:
                 .values(reporting_started_at=None, report_error=None)
             )
             result = await session.execute(stmt)
-            return int(result.rowcount or 0)
+            return int(result.rowcount or 0)  # type: ignore[attr-defined]
 
     async def release_stale_claimed_rows(
         self,
@@ -264,7 +273,7 @@ class UsageRepository:
                 .values(reporting_started_at=None, report_error=None)
             )
             result = await session.execute(stmt)
-            return int(result.rowcount or 0)
+            return int(result.rowcount or 0)  # type: ignore[attr-defined]
 
     async def get_unreported_periods(
         self,

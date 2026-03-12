@@ -24,13 +24,11 @@ class TestSkipJwtProductionGuard:
 
     def test_skip_jwt_blocked_in_cloud_run(self):
         """SKIP_JWT_VALIDATION=true must fail when K_SERVICE is set."""
-        with patch.dict(
-            os.environ, {"K_SERVICE": "lightspeed-agent"}, clear=False
+        with (
+            patch.dict(os.environ, {"K_SERVICE": "lightspeed-agent"}, clear=False),
+            pytest.raises(ValidationError, match="not allowed in Cloud Run"),
         ):
-            with pytest.raises(
-                ValidationError, match="not allowed in Cloud Run"
-            ):
-                Settings(skip_jwt_validation=True)
+            Settings(skip_jwt_validation=True)
 
     def test_no_skip_jwt_allowed_in_cloud_run(self):
         """SKIP_JWT_VALIDATION=false (default) is fine in Cloud Run."""

@@ -65,21 +65,35 @@ class ProcurementService:
 
         handlers = {
             # Account events
-            ProcurementEventType.ACCOUNT_CREATION_REQUESTED: self._handle_account_creation_requested,
+            ProcurementEventType.ACCOUNT_CREATION_REQUESTED: (
+                self._handle_account_creation_requested
+            ),
             ProcurementEventType.ACCOUNT_ACTIVE: self._handle_account_active,
             ProcurementEventType.ACCOUNT_DELETED: self._handle_account_deleted,
             # Entitlement lifecycle
-            ProcurementEventType.ENTITLEMENT_CREATION_REQUESTED: self._handle_entitlement_creation_requested,
+            ProcurementEventType.ENTITLEMENT_CREATION_REQUESTED: (
+                self._handle_entitlement_creation_requested
+            ),
             ProcurementEventType.ENTITLEMENT_ACTIVE: self._handle_entitlement_active,
             ProcurementEventType.ENTITLEMENT_RENEWED: self._handle_entitlement_renewed,
-            ProcurementEventType.ENTITLEMENT_OFFER_ACCEPTED: self._handle_entitlement_offer_accepted,
+            ProcurementEventType.ENTITLEMENT_OFFER_ACCEPTED: (
+                self._handle_entitlement_offer_accepted
+            ),
             # Plan changes
-            ProcurementEventType.ENTITLEMENT_PLAN_CHANGE_REQUESTED: self._handle_plan_change_requested,
+            ProcurementEventType.ENTITLEMENT_PLAN_CHANGE_REQUESTED: (
+                self._handle_plan_change_requested
+            ),
             ProcurementEventType.ENTITLEMENT_PLAN_CHANGED: self._handle_plan_changed,
-            ProcurementEventType.ENTITLEMENT_PLAN_CHANGE_CANCELLED: self._handle_plan_change_cancelled,
+            ProcurementEventType.ENTITLEMENT_PLAN_CHANGE_CANCELLED: (
+                self._handle_plan_change_cancelled
+            ),
             # Cancellation
-            ProcurementEventType.ENTITLEMENT_PENDING_CANCELLATION: self._handle_pending_cancellation,
-            ProcurementEventType.ENTITLEMENT_CANCELLATION_REVERTED: self._handle_cancellation_reverted,
+            ProcurementEventType.ENTITLEMENT_PENDING_CANCELLATION: (
+                self._handle_pending_cancellation
+            ),
+            ProcurementEventType.ENTITLEMENT_CANCELLATION_REVERTED: (
+                self._handle_cancellation_reverted
+            ),
             ProcurementEventType.ENTITLEMENT_CANCELLING: self._handle_entitlement_cancelling,
             ProcurementEventType.ENTITLEMENT_CANCELLED: self._handle_entitlement_cancelled,
             ProcurementEventType.ENTITLEMENT_DELETED: self._handle_entitlement_deleted,
@@ -395,7 +409,7 @@ class ProcurementService:
                 scopes=["https://www.googleapis.com/auth/cloud-platform"]
             )
             request = google.auth.transport.requests.Request()
-            credentials.refresh(request)
+            credentials.refresh(request)  # type: ignore[no-untyped-call]
             return {"Authorization": f"Bearer {credentials.token}"}
         except Exception as e:
             logger.warning("Failed to get ADC credentials: %s", e)
@@ -415,7 +429,11 @@ class ProcurementService:
                 logger.warning("SERVICE_CONTROL_SERVICE_NAME not set, skipping approval")
                 return True  # Allow for development
 
-            url = f"{self.PROCUREMENT_API_BASE}/providers/{self._settings.service_control_service_name}/entitlements/{entitlement_id}:approve"
+            svc = self._settings.service_control_service_name
+            url = (
+                f"{self.PROCUREMENT_API_BASE}/providers/{svc}"
+                f"/entitlements/{entitlement_id}:approve"
+            )
             headers = await self._get_auth_headers()
 
             async with httpx.AsyncClient() as client:
@@ -457,7 +475,11 @@ class ProcurementService:
                 logger.warning("SERVICE_CONTROL_SERVICE_NAME not set, skipping approval")
                 return True  # Allow for development
 
-            url = f"{self.PROCUREMENT_API_BASE}/providers/{self._settings.service_control_service_name}/accounts/{account_id}:approve"
+            svc = self._settings.service_control_service_name
+            url = (
+                f"{self.PROCUREMENT_API_BASE}/providers/{svc}"
+                f"/accounts/{account_id}:approve"
+            )
             headers = await self._get_auth_headers()
 
             async with httpx.AsyncClient() as client:
@@ -501,7 +523,11 @@ class ProcurementService:
                 logger.warning("SERVICE_CONTROL_SERVICE_NAME not set, skipping approval")
                 return True  # Allow for development
 
-            url = f"{self.PROCUREMENT_API_BASE}/providers/{self._settings.service_control_service_name}/entitlements/{entitlement_id}:approvePlanChange"
+            svc = self._settings.service_control_service_name
+            url = (
+                f"{self.PROCUREMENT_API_BASE}/providers/{svc}"
+                f"/entitlements/{entitlement_id}:approvePlanChange"
+            )
             headers = await self._get_auth_headers()
 
             async with httpx.AsyncClient() as client:

@@ -1,13 +1,13 @@
 """Data models for Google Cloud Service Control API."""
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
-class CheckErrorCode(str, Enum):
+class CheckErrorCode(StrEnum):
     """Error codes from Service Control check response."""
 
     # Service not activated for the consumer
@@ -48,13 +48,12 @@ class CheckError(BaseModel):
 class CheckResponse(BaseModel):
     """Response from services.check API."""
 
+    model_config = ConfigDict(populate_by_name=True)
+
     operation_id: str = Field(..., alias="operationId", description="Operation ID")
     check_errors: list[CheckError] = Field(
         default_factory=list, alias="checkErrors", description="Check errors"
     )
-
-    class Config:
-        populate_by_name = True
 
     @property
     def is_valid(self) -> bool:
@@ -75,6 +74,8 @@ class CheckResponse(BaseModel):
 class ReportResponse(BaseModel):
     """Response from services.report API."""
 
+    model_config = ConfigDict(populate_by_name=True)
+
     report_errors: list[dict[str, Any]] = Field(
         default_factory=list, alias="reportErrors", description="Report errors"
     )
@@ -84,9 +85,6 @@ class ReportResponse(BaseModel):
     service_rollout_id: str | None = Field(
         None, alias="serviceRolloutId", description="Service rollout ID"
     )
-
-    class Config:
-        populate_by_name = True
 
     @property
     def is_success(self) -> bool:
@@ -102,8 +100,8 @@ class UsageReport(BaseModel):
     start_time: datetime = Field(..., description="Start of reporting period")
     end_time: datetime = Field(..., description="End of reporting period")
     reported: bool = Field(default=False, description="Whether successfully reported")
-    reported_at: datetime | None = Field(None, description="When reported")
-    error_message: str | None = Field(None, description="Error if report failed")
+    reported_at: datetime | None = Field(default=None, description="When reported")
+    error_message: str | None = Field(default=None, description="Error if report failed")
     retry_count: int = Field(default=0, description="Number of retry attempts")
 
 

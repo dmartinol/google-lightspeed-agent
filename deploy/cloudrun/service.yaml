@@ -100,21 +100,6 @@ spec:
             - name: MCP_READ_ONLY
               value: "true"
             # Secrets from Secret Manager
-            # Lightspeed credentials (optional).
-            # If set, the agent sends them to the MCP server as HTTP headers.
-            # If not set, the agent forwards the caller's Bearer token instead.
-            # To use JWT pass-through, remove these two entries or leave the
-            # secrets empty in Secret Manager.
-            #- name: LIGHTSPEED_CLIENT_ID
-            #  valueFrom:
-            #    secretKeyRef:
-            #      name: lightspeed-client-id
-            #      key: latest
-            #- name: LIGHTSPEED_CLIENT_SECRET
-            #  valueFrom:
-            #    secretKeyRef:
-            #      name: lightspeed-client-secret
-            #      key: latest
             - name: RED_HAT_SSO_CLIENT_ID
               valueFrom:
                 secretKeyRef:
@@ -192,8 +177,6 @@ spec:
         # Authentication: The agent forwards the caller's JWT token to the
         # MCP server via the Authorization header.  The MCP server uses this
         # token to authenticate with console.redhat.com on behalf of the user.
-        # (If Lightspeed credentials are configured on the agent, those are
-        # sent instead — see the agent container env above.)
         #
         # Sidecar container - no ports section (only main container can expose port)
         #

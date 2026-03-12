@@ -29,7 +29,7 @@ dependencies = [
     "fastapi>=0.115.0",
     "PyJWT[crypto]>=2.8.0",
     "cryptography>=46.0.5",
-    "sqlalchemy>=2.0.0",
+    "sqlalchemy[asyncio]>=2.0.0",
     "aiosqlite>=0.20.0",
     # PostgreSQL drivers
     "asyncpg>=0.29.0",  # Async driver for SQLAlchemy async operations

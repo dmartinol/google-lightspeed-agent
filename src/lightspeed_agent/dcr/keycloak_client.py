@@ -2,6 +2,7 @@
 
 import logging
 from dataclasses import dataclass
+from typing import Any
 
 import httpx
 
@@ -25,7 +26,12 @@ class KeycloakClientResponse:
 class KeycloakDCRError(Exception):
     """Error from Keycloak DCR operation."""
 
-    def __init__(self, message: str, status_code: int | None = None, details: dict | None = None):
+    def __init__(
+        self,
+        message: str,
+        status_code: int | None = None,
+        details: dict[str, Any] | None = None,
+    ):
         super().__init__(message)
         self.status_code = status_code
         self.details = details or {}
@@ -93,7 +99,9 @@ class KeycloakDCRClient:
         request_body = {
             "client_name": client_name,
             "redirect_uris": redirect_uris or [],
-            "grant_types": grant_types or ["authorization_code", "refresh_token", "client_credentials"],
+            "grant_types": grant_types or [
+                "authorization_code", "refresh_token", "client_credentials",
+            ],
             "token_endpoint_auth_method": "client_secret_basic",
             "application_type": "web",
             "scope": settings.agent_required_scope,
@@ -174,7 +182,7 @@ class KeycloakDCRClient:
                 status_code=500,
             ) from e
 
-    async def _enable_service_accounts(self, oauth_client_id: str, settings) -> None:
+    async def _enable_service_accounts(self, oauth_client_id: str, settings: Any) -> None:
         """Enable service accounts on a DCR-created client via Admin API.
 
         Keycloak's OIDC DCR endpoint does not set ``serviceAccountsEnabled``

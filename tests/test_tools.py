@@ -1,23 +1,21 @@
 """Tests for MCP tools integration."""
 
 import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import pytest
-
-from lightspeed_agent.tools.mcp_config import MCPServerConfig
-from lightspeed_agent.tools.skills import (
-    ALL_SKILLS,
-    READ_ONLY_SKILLS,
-    Skill,
-    get_skills_for_agent_card,
-)
 from lightspeed_agent.tools.insights_tools import (
     ADVISOR_TOOLS,
     ALL_INSIGHTS_TOOLS,
     INVENTORY_TOOLS,
     READ_ONLY_TOOLS,
     VULNERABILITY_TOOLS,
+)
+from lightspeed_agent.tools.mcp_config import MCPServerConfig
+from lightspeed_agent.tools.skills import (
+    ALL_SKILLS,
+    READ_ONLY_SKILLS,
+    Skill,
+    get_skills_for_agent_card,
 )
 
 
@@ -27,8 +25,6 @@ class TestMCPServerConfig:
     def test_create_from_settings(self):
         """Test creating config from settings."""
         with patch.dict(os.environ, {
-            "LIGHTSPEED_CLIENT_ID": "test-id",
-            "LIGHTSPEED_CLIENT_SECRET": "test-secret",
             "MCP_TRANSPORT_MODE": "stdio",
             "MCP_READ_ONLY": "true",
         }):
@@ -38,8 +34,6 @@ class TestMCPServerConfig:
 
             config = MCPServerConfig.from_settings()
 
-            assert config.client_id == "test-id"
-            assert config.client_secret == "test-secret"
             assert config.transport_mode == "stdio"
             assert config.read_only is True
 
@@ -47,8 +41,6 @@ class TestMCPServerConfig:
         """Test stdio command generation."""
         config = MCPServerConfig(
             transport_mode="stdio",
-            client_id="test-id",
-            client_secret="test-secret",
         )
 
         assert config.get_stdio_command() == "podman"
@@ -57,8 +49,6 @@ class TestMCPServerConfig:
         """Test stdio args generation."""
         config = MCPServerConfig(
             transport_mode="stdio",
-            client_id="test-id",
-            client_secret="test-secret",
             read_only=True,
         )
 
@@ -74,8 +64,6 @@ class TestMCPServerConfig:
         """Test stdio args without read-only flag."""
         config = MCPServerConfig(
             transport_mode="stdio",
-            client_id="test-id",
-            client_secret="test-secret",
             read_only=False,
         )
 
@@ -83,42 +71,14 @@ class TestMCPServerConfig:
 
         assert "--read-only" not in args
 
-    def test_stdio_env(self):
-        """Test stdio environment variables."""
-        config = MCPServerConfig(
-            transport_mode="stdio",
-            client_id="test-id",
-            client_secret="test-secret",
-        )
-
-        env = config.get_stdio_env()
-
-        assert env["LIGHTSPEED_CLIENT_ID"] == "test-id"
-        assert env["LIGHTSPEED_CLIENT_SECRET"] == "test-secret"
-
     def test_http_url(self):
         """Test HTTP URL generation."""
         config = MCPServerConfig(
             transport_mode="http",
-            client_id="test-id",
-            client_secret="test-secret",
             server_url="http://localhost:8080",
         )
 
         assert config.get_http_url() == "http://localhost:8080/mcp"
-
-    def test_http_headers(self):
-        """Test HTTP headers generation."""
-        config = MCPServerConfig(
-            transport_mode="http",
-            client_id="test-id",
-            client_secret="test-secret",
-        )
-
-        headers = config.get_http_headers()
-
-        assert headers["lightspeed-client-id"] == "test-id"
-        assert headers["lightspeed-client-secret"] == "test-secret"
 
 
 class TestSkills:

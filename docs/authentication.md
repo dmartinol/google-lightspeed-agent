@@ -8,7 +8,7 @@ The system uses three distinct authentication flows:
 
 1. **Dynamic Client Registration (DCR)** -- Handler creates per-order OAuth clients in Red Hat SSO
 2. **Token Introspection** -- Agent validates access tokens via Keycloak introspection endpoint (RFC 7662) and checks for `agent:insights` scope
-3. **MCP Service Account** -- Agent passes Lightspeed credentials to the MCP sidecar, which obtains its own OAuth2 token from sso.redhat.com to call console.redhat.com APIs
+3. **MCP JWT Pass-Through** -- Agent forwards the caller's JWT token to the MCP sidecar, which uses it to call console.redhat.com APIs on behalf of the user
 
 Clients obtain access tokens directly from Red Hat SSO (Keycloak) using their DCR-issued credentials. The agent acts purely as a **Resource Server** — it validates incoming tokens but does not proxy or participate in the OAuth authorization flow.
 
@@ -67,15 +67,15 @@ Clients obtain access tokens directly from Red Hat SSO (Keycloak) using their DC
                                                               | |           v             |
                                                               | |  +-----------------------------+
                                                               | |  |  7. MCP Tool Calls          |
-                                                              | |  |     lightspeed-client-id    |
-                                                              | |  |     lightspeed-client-secret|
+                                                              | |  |     Authorization: Bearer   |
+                                                              | |  |     (caller's JWT token)    |
                                                               | |  +-------------+---------------+
                                                               | |                |               |
                                                               | |                v               |
                                                               | |  +----------------------------+|
                                                               | +--| MCP Sidecar (8081)         ||
-                                                              |    | 8. OAuth2 token from SSO   ||
-                                                              |    |    (Lightspeed SA creds)   ||
+                                                              |    | 8. Calls APIs using the    ||
+                                                              |    |    forwarded JWT token     ||
                                                               |    +-------------+--------------+|
                                                               |                  |               |
                                                               +---------------------------+-----+
@@ -100,9 +100,8 @@ Clients obtain access tokens directly from Red Hat SSO (Keycloak) using their DC
 | 4 | Handler -> Red Hat SSO | Create OAuth client via Keycloak DCR endpoint |
 | 5 | Client -> Red Hat SSO | Client obtains access token directly from Keycloak (e.g., `client_credentials` grant) |
 | 6 | Agent -> Red Hat SSO | Introspect token on every A2A request; check `agent:insights` scope |
-| 7 | Agent -> MCP Sidecar | Tool call with Lightspeed credentials in headers |
-| 8 | MCP Sidecar -> Red Hat SSO | Obtain OAuth2 token using Lightspeed service account |
-| 9 | MCP Sidecar -> console.redhat.com | Call Insights APIs with Bearer token |
+| 7 | Agent -> MCP Sidecar | Tool call with caller's JWT token in Authorization header |
+| 8 | MCP Sidecar -> console.redhat.com | Call Insights APIs using the forwarded JWT token |
 
 ## Dynamic Client Registration (DCR)
 
@@ -176,14 +175,7 @@ A test script is available at `scripts/test_dcr.py` that signs a software_statem
 
 ## MCP Sidecar Authentication
 
-The MCP sidecar authenticates to console.redhat.com using a Lightspeed service account (machine-to-machine, no user interaction). The agent passes the credentials to the sidecar via HTTP headers on every tool call.
-
-| Variable | Description |
-|----------|-------------|
-| `LIGHTSPEED_CLIENT_ID` | Service account client ID from console.redhat.com |
-| `LIGHTSPEED_CLIENT_SECRET` | Service account client secret |
-
-The MCP sidecar uses these credentials to obtain an OAuth2 access token from sso.redhat.com, then calls console.redhat.com APIs (Advisor, Inventory, Vulnerability, etc.) with the Bearer token. See [MCP Integration](mcp-integration.md) for full details.
+The agent forwards the caller's JWT token to the MCP sidecar via the `Authorization: Bearer <token>` header on every tool call. The MCP sidecar uses this token to authenticate with console.redhat.com APIs (Advisor, Inventory, Vulnerability, etc.) on behalf of the calling user. See [MCP Integration](mcp-integration.md) for full details.
 
 ## Token Introspection
 

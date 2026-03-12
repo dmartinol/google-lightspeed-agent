@@ -6,7 +6,7 @@ from lightspeed_agent.tools.insights_tools import (
     create_insights_toolset,
     get_insights_tools_for_cloud_run,
 )
-from lightspeed_agent.tools.mcp_config import MCPServerConfig, setup_mcp_environment
+from lightspeed_agent.tools.mcp_config import MCPServerConfig
 from lightspeed_agent.tools.mcp_headers import create_mcp_header_provider
 from lightspeed_agent.tools.skills import (
     ALL_SKILLS,
@@ -18,7 +18,6 @@ from lightspeed_agent.tools.skills import (
 __all__ = [
     # MCP Config
     "MCPServerConfig",
-    "setup_mcp_environment",
     # MCP Headers
     "create_mcp_header_provider",
     # Toolset creation

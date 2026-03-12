@@ -50,29 +50,18 @@ RED_HAT_SSO_CLIENT_SECRET=my-client-secret
 
 ### Red Hat Lightspeed MCP
 
-The MCP server runs as a sidecar container and provides tools for accessing Red Hat Insights APIs. See [MCP Integration](mcp-integration.md) for details.
+The MCP server runs as a sidecar container and provides tools for accessing Red Hat Insights APIs. The agent forwards the caller's JWT token to the MCP server, which uses it to authenticate with console.redhat.com on behalf of the user. See [MCP Integration](mcp-integration.md) for details.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `LIGHTSPEED_CLIENT_ID` | - | Insights service account client ID |
-| `LIGHTSPEED_CLIENT_SECRET` | - | Insights service account client secret |
 | `MCP_TRANSPORT_MODE` | `http` | MCP transport: `stdio`, `http`, or `sse` |
 | `MCP_SERVER_URL` | `http://localhost:8080` | MCP server URL (use 8081 for Podman to avoid A2A Inspector conflict) |
 | `MCP_READ_ONLY` | `true` | Enable read-only mode for MCP tools |
-
-**Obtaining Lightspeed Credentials:**
-
-1. Go to [console.redhat.com](https://console.redhat.com)
-2. Navigate to **Settings** → **Integrations** → **Red Hat Lightspeed**
-3. Create a service account
-4. Copy the Client ID and Client Secret
 
 **Development (stdio mode):**
 
 ```bash
 # Agent spawns MCP server as subprocess
-LIGHTSPEED_CLIENT_ID=your-service-account-id
-LIGHTSPEED_CLIENT_SECRET=your-service-account-secret
 MCP_TRANSPORT_MODE=stdio
 MCP_READ_ONLY=true
 ```
@@ -81,8 +70,6 @@ MCP_READ_ONLY=true
 
 ```bash
 # Agent connects to MCP server sidecar via HTTP
-LIGHTSPEED_CLIENT_ID=your-service-account-id
-LIGHTSPEED_CLIENT_SECRET=your-service-account-secret
 MCP_TRANSPORT_MODE=http
 MCP_SERVER_URL=http://localhost:8081  # Use 8081 for Podman (8080 for Cloud Run)
 MCP_READ_ONLY=true
@@ -346,8 +333,6 @@ These fields must be set for the agent to start:
 
 - `GOOGLE_API_KEY` (if not using Vertex AI)
 - `GOOGLE_CLOUD_PROJECT` (if using Vertex AI)
-- `LIGHTSPEED_CLIENT_ID`
-- `LIGHTSPEED_CLIENT_SECRET`
 
 ### Validation Errors
 

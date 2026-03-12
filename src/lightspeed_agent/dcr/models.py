@@ -1,13 +1,13 @@
 """Data models for Dynamic Client Registration (DCR)."""
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 
-class DCRErrorCode(str, Enum):
+class DCRErrorCode(StrEnum):
     """DCR error codes per RFC 7591."""
 
     INVALID_REQUEST = "invalid_request"
@@ -122,27 +122,27 @@ class DCRResponse(BaseModel):
         description="Secret expiration (0 = never expires)",
     )
     client_id_issued_at: int | None = Field(
-        None,
+        default=None,
         description="Timestamp when client_id was issued",
     )
     registration_access_token: str | None = Field(
-        None,
+        default=None,
         description="Token for accessing registration endpoint",
     )
     registration_client_uri: str | None = Field(
-        None,
+        default=None,
         description="URI for client configuration endpoint",
     )
     redirect_uris: list[str] | None = Field(
-        None,
+        default=None,
         description="Registered redirect URIs",
     )
     grant_types: list[str] | None = Field(
-        None,
+        default=None,
         description="Allowed grant types",
     )
     token_endpoint_auth_method: str | None = Field(
-        None,
+        default=None,
         description="Token endpoint authentication method",
     )
 

@@ -178,7 +178,9 @@ class TestDCRService:
         )
 
         # Mock credential validation (no real Red Hat SSO in tests)
-        with patch.object(service, "_validate_credentials", new_callable=AsyncMock, return_value=True):
+        with patch.object(
+            service, "_validate_credentials", new_callable=AsyncMock, return_value=True,
+        ):
             result = await service._store_static_credentials(request, claims)
 
         assert isinstance(result, DCRResponse)
