@@ -98,6 +98,15 @@ class EntitlementInfo(BaseModel):
         alias="cancellationReason",
         description="Reason for cancellation",
     )
+    previous_plan: str | None = Field(
+        default=None,
+        alias="previousPlan",
+        description="Previous plan for plan change events",
+    )
+    product: str | None = Field(
+        default=None,
+        description="Product identifier from marketplace",
+    )
 
 
 class AccountInfo(BaseModel):

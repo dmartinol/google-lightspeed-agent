@@ -144,8 +144,10 @@ else
     log_info "Pub/Sub subscription '$PUBSUB_SUBSCRIPTION' does not exist, skipping"
 fi
 
-# Delete topic
-if gcloud pubsub topics describe "$PUBSUB_TOPIC" --project="$PROJECT_ID" &>/dev/null; then
+# Delete topic (skip if cross-project — the topic is managed externally)
+if [[ "$PUBSUB_TOPIC" == projects/* ]]; then
+    log_info "Pub/Sub topic is a cross-project reference, skipping deletion: $PUBSUB_TOPIC"
+elif gcloud pubsub topics describe "$PUBSUB_TOPIC" --project="$PROJECT_ID" &>/dev/null; then
     gcloud pubsub topics delete "$PUBSUB_TOPIC" \
         --project="$PROJECT_ID" \
         --quiet
@@ -194,6 +196,7 @@ roles=(
     "roles/logging.logWriter"
     "roles/monitoring.metricWriter"
     "roles/cloudsql.client"
+    "roles/serviceusage.serviceUsageConsumer"
 )
 
 if gcloud iam service-accounts describe "$SERVICE_ACCOUNT" --project="$PROJECT_ID" &>/dev/null; then
@@ -233,6 +236,13 @@ if gcloud iam service-accounts describe "$PUBSUB_INVOKER_SA" --project="$PROJECT
         --member="serviceAccount:$PUBSUB_INVOKER_SA" \
         --role="roles/iam.serviceAccountUser" \
         --project="$PROJECT_ID" \
+        --quiet 2>/dev/null || true
+
+    # Remove the project-level pubsub.editor binding
+    log_info "  Removing roles/pubsub.editor..."
+    gcloud projects remove-iam-policy-binding "$PROJECT_ID" \
+        --member="serviceAccount:$PUBSUB_INVOKER_SA" \
+        --role="roles/pubsub.editor" \
         --quiet 2>/dev/null || true
 
     log_info "Deleting Pub/Sub Invoker service account..."

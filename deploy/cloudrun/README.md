@@ -21,7 +21,7 @@ The deployment consists of **two separate Cloud Run services** plus **Cloud Memo
 │                    Marketplace Handler Service (Port 8001)                      │
 │                    ───────────────────────────────────────                      │
 │  - Always running (minScale=1) to receive Pub/Sub events                        │
-│  - Handles account/entitlement approvals via Procurement API                    │
+│  - Handles entitlement approvals via Procurement API (filtered by product)      │
 │  - Handles DCR requests (creates OAuth clients in Red Hat SSO)                  │
 │  - Stores data in PostgreSQL                                                    │
 └──────────┬──────────────────────────────────────────────────────────────────────┘
@@ -70,7 +70,7 @@ The deployment uses **two separate service accounts** following the principle of
 
 | Service Account | Name | Purpose | Permissions |
 |-----------------|------|---------|-------------|
-| **Runtime SA** | `lightspeed-agent` | Cloud Run service identity for both services | Secret Manager access, Vertex AI, Pub/Sub, Cloud SQL, logging, monitoring |
+| **Runtime SA** | `lightspeed-agent` | Cloud Run service identity for both services | Secret Manager access, Vertex AI, Pub/Sub, Cloud SQL, Service Usage, logging, monitoring |
 | **Pub/Sub Invoker SA** | `pubsub-invoker` | Authenticates Pub/Sub push subscriptions to invoke Cloud Run | `roles/run.invoker` on marketplace-handler service only |
 
 **Why two service accounts?**
@@ -107,6 +107,36 @@ export SERVICE_NAME="lightspeed-agent"
 export ENABLE_MARKETPLACE="false"
 ```
 
+**Google Cloud Marketplace deployments:** If you are deploying with marketplace
+integration (`ENABLE_MARKETPLACE=true`, the default), you **must** set the
+following variables **before** running `setup.sh` or `deploy.sh`:
+
+```bash
+# Required: managed service name from the Producer Portal (the product-level
+# identifier). Used by the handler to approve entitlements via the Procurement
+# API and to filter Pub/Sub events by product. You can find it under
+# APIs & Services > Endpoints, or by running:
+#   gcloud endpoints services list --project=$GOOGLE_CLOUD_PROJECT
+export SERVICE_CONTROL_SERVICE_NAME="<service-name>.endpoints.<project-id>.cloud.goog"
+
+# Required: fully-qualified Pub/Sub topic provided by Google Cloud Marketplace
+export PUBSUB_TOPIC="projects/<marketplace-project>/topics/<your-marketplace-topic>"
+
+# Required when using a fully-qualified topic: the subscription name is derived
+# from the topic by default (appending "-sub"), which produces an invalid name
+# when the topic is a fully-qualified path.
+export PUBSUB_SUBSCRIPTION="marketplace-events-sub"
+```
+
+If `SERVICE_CONTROL_SERVICE_NAME` is not set, the handler will skip
+entitlement approval and subscriptions will remain pending in the Google
+Cloud console.
+
+If `PUBSUB_TOPIC` is not set, the scripts default to creating a local topic
+named `marketplace-entitlements`, which does **not** receive events from the
+marketplace. Orders will remain stuck in `pending` status because
+entitlement approval events never reach the handler.
+
 ### 2. Run Setup Script
 
 The setup script enables required APIs, creates service accounts (runtime + Pub/Sub invoker), and sets up secrets:
@@ -126,7 +156,9 @@ The setup script enables required APIs, creates service accounts (runtime + Pub/
 | `DB_INSTANCE_NAME` | `lightspeed-agent-db` | Cloud SQL instance name |
 | `VPC_CONNECTOR_NAME` | `lightspeed-redis-conn` | Serverless VPC Access connector for Redis |
 | `PUBSUB_INVOKER_NAME` | `pubsub-invoker` | Pub/Sub invoker SA name |
-| `PUBSUB_TOPIC` | `marketplace-entitlements` | Pub/Sub topic name for marketplace events |
+| `PUBSUB_TOPIC` | `marketplace-entitlements` | Pub/Sub topic for marketplace events. **Must** be set to the fully-qualified topic from Google Cloud Marketplace for production deployments. See [Set Environment Variables](#1-set-environment-variables). |
+| `PUBSUB_SUBSCRIPTION` | `${PUBSUB_TOPIC}-sub` | Pub/Sub subscription name. **Must** be set explicitly when `PUBSUB_TOPIC` is a fully-qualified path, since the default derivation produces an invalid name. |
+| `SERVICE_CONTROL_SERVICE_NAME` | - | Managed service name from the Producer Portal. **Required** for marketplace deployments — used for entitlement approval and product-level event filtering. |
 | `ENABLE_MARKETPLACE` | `true` | Create Pub/Sub invoker SA and topic for marketplace integration |
 
 ### 3. Set Up Cloud SQL Database
@@ -1769,6 +1801,91 @@ gcloud run services describe lightspeed-agent \
 1. **Secret access denied**: Ensure service account has `secretmanager.secretAccessor` role
 2. **Container fails to start**: Check logs for missing environment variables
 3. **Database connection timeout**: Ensure Cloud SQL connection is configured
+
+### Orders Stuck in Pending Status
+
+If marketplace subscriptions remain in `pending` status in the Google Cloud
+console, check the handler logs for one of these messages:
+
+**"SERVICE_CONTROL_SERVICE_NAME not set, skipping approval"** — The handler
+is not configured with the managed service name. Set it on the handler:
+
+```bash
+gcloud run services update ${HANDLER_SERVICE_NAME:-marketplace-handler} \
+  --region=$GOOGLE_CLOUD_LOCATION \
+  --project=$GOOGLE_CLOUD_PROJECT \
+  --update-env-vars="SERVICE_CONTROL_SERVICE_NAME=<your-service-name>.endpoints.<project-id>.cloud.goog"
+```
+
+You can find your managed service name via:
+
+```bash
+gcloud endpoints services list --project=$GOOGLE_CLOUD_PROJECT
+```
+
+**No events arriving at all** — The Pub/Sub
+subscription is likely pointing to the wrong topic. This happens when
+`PUBSUB_TOPIC` was not set to the fully-qualified marketplace topic before
+deploying. See [Set Environment Variables](#1-set-environment-variables).
+
+To verify and fix:
+
+```bash
+# Check which topic the subscription points to
+gcloud pubsub subscriptions describe ${PUBSUB_SUBSCRIPTION:-marketplace-entitlements-sub} \
+  --project=$GOOGLE_CLOUD_PROJECT \
+  --format='yaml(topic, pushConfig.pushEndpoint)'
+```
+
+If the topic is wrong, the subscription must be deleted and recreated (the
+topic cannot be changed on an existing subscription). The Pub/Sub Invoker SA
+(linked in the Marketplace Producer Portal) must be used to create the
+subscription because it holds the cross-project permissions on the
+marketplace topic:
+
+```bash
+export PUBSUB_TOPIC="projects/<marketplace-project>/topics/<your-marketplace-topic>"
+export PUBSUB_SUBSCRIPTION="marketplace-events-sub"
+export PUBSUB_INVOKER_SA="${PUBSUB_INVOKER_NAME:-pubsub-invoker}@${GOOGLE_CLOUD_PROJECT}.iam.gserviceaccount.com"
+
+# Delete the old subscription
+gcloud pubsub subscriptions delete marketplace-entitlements-sub \
+  --project=$GOOGLE_CLOUD_PROJECT --quiet
+
+# Ensure the invoker SA has roles/pubsub.editor in your project
+# (setup.sh grants this automatically for new deployments)
+gcloud projects add-iam-policy-binding $GOOGLE_CLOUD_PROJECT \
+  --member="serviceAccount:$PUBSUB_INVOKER_SA" \
+  --role="roles/pubsub.editor" --quiet
+
+# Ensure you can impersonate the invoker SA
+gcloud iam service-accounts add-iam-policy-binding "$PUBSUB_INVOKER_SA" \
+  --member="user:$(gcloud config get account)" \
+  --role="roles/iam.serviceAccountTokenCreator" \
+  --project=$GOOGLE_CLOUD_PROJECT --quiet
+
+# Wait a couple of minutes for IAM propagation, then create the subscription
+HANDLER_URL=$(gcloud run services describe ${HANDLER_SERVICE_NAME:-marketplace-handler} \
+  --region=${GOOGLE_CLOUD_LOCATION:-us-central1} \
+  --project=$GOOGLE_CLOUD_PROJECT \
+  --format='value(status.url)')
+
+gcloud pubsub subscriptions create "$PUBSUB_SUBSCRIPTION" \
+  --topic="$PUBSUB_TOPIC" \
+  --push-endpoint="${HANDLER_URL}/dcr" \
+  --push-auth-service-account="$PUBSUB_INVOKER_SA" \
+  --ack-deadline=60 \
+  --project=$GOOGLE_CLOUD_PROJECT \
+  --impersonate-service-account="$PUBSUB_INVOKER_SA"
+```
+
+Verify the fix:
+
+```bash
+gcloud pubsub subscriptions describe "$PUBSUB_SUBSCRIPTION" \
+  --project=$GOOGLE_CLOUD_PROJECT \
+  --format='yaml(topic, pushConfig.pushEndpoint)'
+```
 
 ## Cleanup / Teardown
 

@@ -29,10 +29,10 @@ Clients obtain access tokens directly from Red Hat SSO (Keycloak) using their DC
 |  |                                                   | |                  |
 |  |  Pub/Sub path:         DCR path:                  | |                  |
 |  |  - Decode msg          - Validate Google JWT  [3] | |                  |
-|  |  - Approve via         - Verify order in DB       | |                  |
-|  |    Procurement API     - Create OAuth client  [4] | |                  |
-|  |  - Store account/      - Return client_id +       | |                  |
-|  |    entitlement           client_secret            | |                  |
+|  |  - Filter by product   - Verify order in DB       | |                  |
+|  |  - Approve entitlement - Create OAuth client  [4] | |                  |
+|  |    via Procurement API - Return client_id +       | |                  |
+|  |  - Store entitlement     client_secret            | |                  |
 |  +---+--------------------+----------+---------------+ |                  |
 |      |                    |          |                 |                  |
 |      v                    |          v                 |                  |
@@ -94,7 +94,7 @@ Clients obtain access tokens directly from Red Hat SSO (Keycloak) using their DC
 
 | Step | Direction | Description |
 |------|-----------|-------------|
-| 1 | Google -> Handler | Pub/Sub procurement event (account/entitlement approval) |
+| 1 | Google -> Handler | Pub/Sub procurement event (entitlement approval, filtered by product) |
 | 2 | Google -> Handler | DCR request with `software_statement` JWT |
 | 3 | Handler -> Google | Fetch X.509 certificates to validate JWT signature |
 | 4 | Handler -> Red Hat SSO | Create OAuth client via Keycloak DCR endpoint |

@@ -29,7 +29,7 @@ The system consists of **two separate services**:
 │  │                           FastAPI Application                             │  │
 │  │  ┌──────────────────────────────────────────────────────────────────────┐ │  │
 │  │  │                    Hybrid /dcr Endpoint                              │ │  │
-│  │  │  - Pub/Sub Events → Approve accounts/entitlements                    │ │  │
+│  │  │  - Pub/Sub Events → Approve accounts and entitlements                 │ │  │
 │  │  │  - DCR Requests → Create OAuth clients via Keycloak                  │ │  │
 │  │  └──────────────────────────────────────────────────────────────────────┘ │  │
 │  └───────────────────────────────────────────────────────────────────────────┘  │
@@ -100,7 +100,7 @@ The system is split into two services for important operational reasons:
 | **Marketplace Handler** | Handles provisioning and DCR | Always running (minScale=1) |
 | **Lightspeed Agent** | AI agent for user queries | Deployed after provisioning |
 
-1. **Marketplace Handler must be always running** to receive Pub/Sub events from Google Cloud Marketplace for account approvals
+1. **Marketplace Handler must be always running** to receive Pub/Sub events from Google Cloud Marketplace for account and entitlement approvals
 2. **Agent can be deployed on-demand** after a customer has been provisioned
 3. **Separation of concerns**: Provisioning logic is isolated from agent logic
 4. **Independent scaling**: Handler scales for provisioning traffic, Agent scales for user traffic
@@ -112,7 +112,7 @@ The system is split into two services for important operational reasons:
 A separate FastAPI application for provisioning, providing:
 
 - **Hybrid /dcr Endpoint**: Single endpoint handling both:
-  - Pub/Sub events (account/entitlement approvals)
+  - Pub/Sub events (account and entitlement approvals, filtered by product)
   - DCR requests (OAuth client creation)
 - **Health Endpoints**: Kubernetes-compatible health checks
 - **Database Access**: PostgreSQL for persistent storage
@@ -159,10 +159,11 @@ This flow happens when a customer purchases from Google Cloud Marketplace:
 1. Customer purchases from Google Cloud Marketplace
 2. Marketplace sends Pub/Sub event to Marketplace Handler
 3. Handler receives POST /dcr with Pub/Sub message wrapper
-4. Handler extracts event type (ACCOUNT_ACTIVE, ENTITLEMENT_ACTIVE, etc.)
-5. Handler calls Google Procurement API to approve account/entitlement
-6. Handler stores account/entitlement in PostgreSQL
-7. Customer is now provisioned for the service
+4. Handler filters by product (SERVICE_CONTROL_SERVICE_NAME) — account events pass through
+5. Handler extracts event type (ACCOUNT_CREATION_REQUESTED, ENTITLEMENT_CREATION_REQUESTED, etc.)
+6. Handler calls Google Procurement API to approve account, then entitlement
+7. Handler stores entitlement in PostgreSQL
+8. Customer is now provisioned for the service
 ```
 
 ```
@@ -178,7 +179,7 @@ This flow happens when a customer purchases from Google Cloud Marketplace:
                                                                           ▼
                                          ┌─────────────────────────────────────┐
                                          │   Google Procurement API            │
-                                         │   (Approve Account/Entitlement)     │
+                                         │   (Approve Entitlement)             │
                                          └─────────────────────────────────────┘
 ```
 
@@ -297,7 +298,7 @@ src/lightspeed_agent/
 | Red Hat Lightspeed MCP | Agent | Data access | Yes |
 | PostgreSQL | Both | Data persistence | Yes (Production) |
 | Google Cloud Pub/Sub | Handler | Marketplace events | Production |
-| Google Procurement API | Handler | Account/entitlement approval | Production |
+| Google Procurement API | Handler | Entitlement approval, account validation | Production |
 | Google Service Control | Agent | Usage reporting | Production |
 
 ## Scaling Considerations

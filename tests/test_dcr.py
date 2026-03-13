@@ -1,5 +1,7 @@
 """Tests for Dynamic Client Registration (DCR) implementation."""
 
+import base64
+import json
 import time
 from unittest.mock import AsyncMock, patch
 
@@ -129,7 +131,6 @@ class TestDCRService:
         entitlement_repo = EntitlementRepository()
         client_repo = DCRClientRepository()
         procurement_service = ProcurementService(
-            account_repo=account_repo,
             entitlement_repo=entitlement_repo,
         )
 
@@ -318,6 +319,260 @@ class TestDCRRouter:
         assert response.status_code == 400
         data = response.json()
         assert data["error"] == "invalid_software_statement"
+
+
+class TestPubSubHandler:
+    """Tests for Pub/Sub event handling via the /dcr endpoint."""
+
+    @pytest_asyncio.fixture
+    async def client(self, db_session):
+        """Create test client with marketplace handler app."""
+        from lightspeed_agent.marketplace.app import create_app as create_marketplace_app
+
+        app = create_marketplace_app()
+        return TestClient(app)
+
+    def _make_pubsub_body(self, event_data: dict, message_id: str = "msg-001") -> dict:
+        """Build a Pub/Sub push message body."""
+        encoded = base64.b64encode(json.dumps(event_data).encode()).decode()
+        return {
+            "message": {
+                "messageId": message_id,
+                "data": encoded,
+            }
+        }
+
+    @pytest.mark.asyncio
+    async def test_entitlement_active_returns_success_with_order_id(self, client):
+        """Test that ENTITLEMENT_ACTIVE returns status=success and orderId."""
+        event_data = {
+            "eventType": "ENTITLEMENT_ACTIVE",
+            "eventId": "evt-001",
+            "providerId": "test-provider",
+            "entitlement": {
+                "id": "order-abc-123",
+                "product": "products/test-product",
+            },
+        }
+
+        response = client.post("/dcr", json=self._make_pubsub_body(event_data))
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "success"
+        assert data["orderId"] == "order-abc-123"
+
+    @pytest.mark.asyncio
+    async def test_account_creation_event_processed(self, client):
+        """Test that account creation events are processed (not skipped)."""
+        event_data = {
+            "eventType": "ACCOUNT_CREATION_REQUESTED",
+            "eventId": "evt-002",
+            "providerId": "test-provider",
+            "account": {"id": "account-xyz"},
+        }
+
+        response = client.post("/dcr", json=self._make_pubsub_body(event_data))
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "success"
+        assert data["orderId"] is None
+
+    @pytest.mark.asyncio
+    async def test_entitlement_creation_requested_returns_order_id(self, client):
+        """Test that ENTITLEMENT_CREATION_REQUESTED returns the order ID."""
+        event_data = {
+            "eventType": "ENTITLEMENT_CREATION_REQUESTED",
+            "eventId": "evt-003",
+            "providerId": "test-provider",
+            "entitlement": {
+                "id": "order-def-456",
+                "product": "products/test-product",
+            },
+        }
+
+        response = client.post("/dcr", json=self._make_pubsub_body(event_data))
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "success"
+        assert data["orderId"] == "order-def-456"
+
+    @pytest.mark.asyncio
+    async def test_empty_message_data(self, client):
+        """Test that empty Pub/Sub message data returns ok."""
+        body = {
+            "message": {
+                "messageId": "msg-empty",
+                "data": "",
+            }
+        }
+
+        response = client.post("/dcr", json=body)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "ok"
+
+    @pytest.mark.asyncio
+    async def test_unknown_event_type(self, client):
+        """Test that unknown event types with product pass filtering but fail parsing."""
+        event_data = {
+            "eventType": "SOME_UNKNOWN_EVENT",
+            "eventId": "evt-unknown",
+            "providerId": "test-provider",
+            "entitlement": {"id": "order-1", "product": "products/test-product"},
+        }
+
+        response = client.post("/dcr", json=self._make_pubsub_body(event_data))
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "ok"
+
+    @pytest.mark.asyncio
+    async def test_unknown_event_type_no_product(self, client):
+        """Test that unknown event types without product return unknown event."""
+        event_data = {
+            "eventType": "SOME_UNKNOWN_EVENT",
+            "eventId": "evt-unknown",
+            "providerId": "test-provider",
+        }
+
+        response = client.post("/dcr", json=self._make_pubsub_body(event_data))
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "ok"
+        assert "Unknown event" in data["message"]
+
+    @pytest.mark.asyncio
+    async def test_invalid_message_encoding(self, client):
+        """Test that invalid base64 data returns 400."""
+        body = {
+            "message": {
+                "messageId": "msg-bad",
+                "data": "not-valid-base64!!!",
+            }
+        }
+
+        response = client.post("/dcr", json=body)
+
+        assert response.status_code == 400
+        data = response.json()
+        assert "error" in data
+
+    @pytest.mark.asyncio
+    async def test_unknown_request_format(self, client):
+        """Test that requests without software_statement or message return 400."""
+        response = client.post("/dcr", json={"foo": "bar"})
+
+        assert response.status_code == 400
+
+    # Product filtering tests
+
+    @pytest.mark.asyncio
+    async def test_matching_product_processed(self, client):
+        """Test that entitlement with matching product is processed."""
+        from lightspeed_agent.config import get_settings
+
+        settings = get_settings()
+        original = settings.service_control_service_name
+        settings.service_control_service_name = "my-agent.endpoints.project.cloud.goog"
+        try:
+            event_data = {
+                "eventType": "ENTITLEMENT_ACTIVE",
+                "eventId": "evt-match",
+                "providerId": "test-provider",
+                "entitlement": {
+                    "id": "order-match",
+                    "product": "products/my-agent.endpoints.project.cloud.goog",
+                },
+            }
+
+            response = client.post("/dcr", json=self._make_pubsub_body(event_data))
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["status"] == "success"
+            assert data["orderId"] == "order-match"
+        finally:
+            settings.service_control_service_name = original
+
+    @pytest.mark.asyncio
+    async def test_non_matching_product_skipped(self, client):
+        """Test that entitlement with non-matching product is skipped."""
+        from lightspeed_agent.config import get_settings
+
+        settings = get_settings()
+        original = settings.service_control_service_name
+        settings.service_control_service_name = "my-agent.endpoints.project.cloud.goog"
+        try:
+            event_data = {
+                "eventType": "ENTITLEMENT_ACTIVE",
+                "eventId": "evt-other",
+                "providerId": "test-provider",
+                "entitlement": {
+                    "id": "order-other",
+                    "product": "products/other-agent.endpoints.project.cloud.goog",
+                },
+            }
+
+            response = client.post("/dcr", json=self._make_pubsub_body(event_data))
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["status"] == "ok"
+            assert "not for this product" in data["message"]
+        finally:
+            settings.service_control_service_name = original
+
+    @pytest.mark.asyncio
+    async def test_product_prefix_stripped(self, client):
+        """Test that products/ prefix is stripped before comparison."""
+        from lightspeed_agent.config import get_settings
+
+        settings = get_settings()
+        original = settings.service_control_service_name
+        settings.service_control_service_name = "my-agent"
+        try:
+            event_data = {
+                "eventType": "ENTITLEMENT_ACTIVE",
+                "eventId": "evt-prefix",
+                "providerId": "test-provider",
+                "entitlement": {
+                    "id": "order-prefix",
+                    "product": "products/my-agent",
+                },
+            }
+
+            response = client.post("/dcr", json=self._make_pubsub_body(event_data))
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["status"] == "success"
+        finally:
+            settings.service_control_service_name = original
+
+    @pytest.mark.asyncio
+    async def test_no_service_name_skips_filtering(self, client):
+        """Test that events pass without filtering when SERVICE_CONTROL_SERVICE_NAME is empty."""
+        event_data = {
+            "eventType": "ENTITLEMENT_ACTIVE",
+            "eventId": "evt-nofilter",
+            "providerId": "test-provider",
+            "entitlement": {
+                "id": "order-nofilter",
+                "product": "products/any-agent",
+            },
+        }
+
+        response = client.post("/dcr", json=self._make_pubsub_body(event_data))
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "success"
 
 
 class TestAgentCardDCRExtension:

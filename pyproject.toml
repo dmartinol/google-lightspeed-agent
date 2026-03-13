@@ -34,6 +34,9 @@ dependencies = [
     # PostgreSQL drivers
     "asyncpg>=0.29.0",  # Async driver for SQLAlchemy async operations
     "psycopg2-binary>=2.9.0",  # Sync driver for ADK DatabaseSessionService
+    # Google Cloud authentication (ADC for Procurement API calls)
+    "google-auth>=2.0.0",
+    "requests>=2.20.0",  # Required by google.auth.transport.requests
 ]
 
 [project.optional-dependencies]
