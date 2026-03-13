@@ -1,6 +1,6 @@
 """Tests for Marketplace Procurement integration."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import httpx
 import pytest
@@ -402,7 +402,9 @@ class TestProcurementService:
         )
         with (
             patch.object(service, "_settings") as mock_settings,
-            patch.object(service, "_get_auth_headers", return_value={"Authorization": "Bearer tok"}),
+            patch.object(
+                service, "_get_auth_headers", return_value={"Authorization": "Bearer tok"}
+            ),
             patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=mock_response),
         ):
             mock_settings.google_cloud_project = "test-project"

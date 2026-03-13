@@ -229,7 +229,7 @@ def _build_procurement_event(
     if account_id:
         account_info = AccountInfo(
             id=account_id,
-            update_time=account_data.get("updateTime"),
+            updateTime=account_data.get("updateTime"),
         )
 
     # Extract entitlement info (multiple possible locations)
@@ -247,19 +247,19 @@ def _build_procurement_event(
     if entitlement_id:
         entitlement_info = EntitlementInfo(
             id=entitlement_id,
-            new_plan=entitlement_data.get("newPlan") or entitlement_data.get("plan"),
-            previous_plan=entitlement_data.get("previousPlan"),
+            newPlan=entitlement_data.get("newPlan") or entitlement_data.get("plan"),
+            previousPlan=entitlement_data.get("previousPlan"),
             product=entitlement_data.get("product"),
-            new_offer_start_time=entitlement_data.get("newOfferStartTime"),
-            new_offer_end_time=entitlement_data.get("newOfferEndTime"),
-            cancellation_reason=entitlement_data.get("cancellationReason"),
-            update_time=entitlement_data.get("updateTime"),
+            newOfferStartTime=entitlement_data.get("newOfferStartTime"),
+            newOfferEndTime=entitlement_data.get("newOfferEndTime"),
+            cancellationReason=entitlement_data.get("cancellationReason"),
+            updateTime=entitlement_data.get("updateTime"),
         )
 
     return ProcurementEvent(
-        event_id=event_id,
-        event_type=event_type,
-        provider_id=provider_id,
+        eventId=event_id,
+        eventType=event_type,
+        providerId=provider_id,
         account=account_info,
         entitlement=entitlement_info,
     )

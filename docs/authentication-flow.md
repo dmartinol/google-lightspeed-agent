@@ -628,11 +628,12 @@ Lightspeed Agent                         MCP Server                    Red Hat L
      |-- [Process user query]                |                                  |
      |-- [Invoke MCP tool]                   |                                  |
      |                                       |                                  |
-     |   [Header provider forwards Bearer token from request context]           |
+     |   [Header provider retrieves token    |                                  |
+     |    from request-scoped ContextVar]    |                                  |
      |     Authorization: Bearer <token>     |                                  |
      |                                       |                                  |
      |-- MCP tool request ------------------>|                                  |
-     |   (with auth headers)                 |                                  |
+     |   (with Authorization header)         |                                  |
      |                                       |-- Call Lightspeed API ---------->|
      |                                       |   (forward credentials)          |
      |                                       |                                  |-- Authenticate
@@ -654,15 +655,15 @@ independently. This mode preserves the user's identity end-to-end.
 
 **Transport modes:**
 
-- **HTTP/SSE transport**: Headers are injected directly into HTTP requests
-  to the MCP server.
+- **HTTP/SSE transport**: The header provider injects the `Authorization`
+  header directly into HTTP requests to the MCP server.
 - **stdio transport**: Not applicable for the Marketplace deployment.
 
 **Error paths:**
 
 | Failure | Behaviour |
 |---|---|
-| No Bearer token in request context | Warning logged: `No MCP credentials available`; empty headers sent — MCP server will reject the unauthenticated request |
+| No Bearer token in request context | Warning logged: `No MCP credentials available: no access token in request context`; empty headers sent — MCP server will reject the unauthenticated request |
 | Forwarded access token is expired | Warning logged: `Access token expired at {exp}`; token is still forwarded — MCP server will reject it and the error propagates back to the caller |
 | MCP server or downstream Lightspeed API rejects the token | MCP tool call returns an error result; the agent surfaces this in the A2A response to Gemini Enterprise |
 
