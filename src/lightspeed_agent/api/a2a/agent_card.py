@@ -130,7 +130,7 @@ def build_agent_card() -> AgentCard:
         description=settings.agent_description,
         version="0.1.0",
         url=f"{settings.agent_provider_url}/",
-        protocol_version="0.2.3",
+        protocol_version="0.3.0",
         provider=provider,
         capabilities=capabilities,
         skills=skills,
