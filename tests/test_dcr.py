@@ -590,8 +590,8 @@ class TestAgentCardDCRExtension:
         dcr_ext = card.capabilities.extensions[0]
         assert "dcr" in dcr_ext.uri
         assert dcr_ext.params is not None
-        assert "endpoint" in dcr_ext.params
-        assert "/dcr" in dcr_ext.params["endpoint"]
+        assert "target_url" in dcr_ext.params
+        assert "/dcr" in dcr_ext.params["target_url"]
 
     @pytest.mark.asyncio
     async def test_agent_card_endpoint_returns_dcr(self, db_session):
@@ -610,7 +610,7 @@ class TestAgentCardDCRExtension:
         assert len(extensions) > 0
         dcr_ext = extensions[0]
         assert "dcr" in dcr_ext["uri"]
-        assert "endpoint" in dcr_ext["params"]
+        assert "target_url" in dcr_ext["params"]
 
 
 class TestKeycloakDCRClient:

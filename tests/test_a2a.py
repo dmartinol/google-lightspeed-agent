@@ -58,7 +58,7 @@ class TestAgentCard:
         dcr_ext = card.capabilities.extensions[0]
         assert "dcr" in dcr_ext.uri
         assert dcr_ext.params is not None
-        assert "endpoint" in dcr_ext.params
+        assert "target_url" in dcr_ext.params
 
     def test_agent_card_url_points_to_root(self):
         """Test AgentCard URL points to root endpoint."""
