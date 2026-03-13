@@ -628,12 +628,7 @@ Lightspeed Agent                         MCP Server                    Red Hat L
      |-- [Process user query]                |                                  |
      |-- [Invoke MCP tool]                   |                                  |
      |                                       |                                  |
-     |   [Header provider resolves credentials]                                 |
-     |                                       |                                  |
-     |   IF LIGHTSPEED_CLIENT_ID is set:     |                                  |
-     |     lightspeed-client-id: <svc-id>    |                                  |
-     |     lightspeed-client-secret: <secret>|                                  |
-     |   ELSE:                               |                                  |
+     |   [Header provider forwards Bearer token from request context]           |
      |     Authorization: Bearer <token>     |                                  |
      |                                       |                                  |
      |-- MCP tool request ------------------>|                                  |
@@ -650,40 +645,24 @@ Lightspeed Agent                         MCP Server                    Red Hat L
      |-- [Format and return A2A response]    |                                  |
 ```
 
-**Header provider priority logic:**
+**Token pass-through:**
 
-The MCP header provider uses a two-tier priority system:
-
-1. **Priority 1 — Service account credentials**: If `LIGHTSPEED_CLIENT_ID`
-   and `LIGHTSPEED_CLIENT_SECRET` environment variables are configured, these
-   are sent as custom headers (`lightspeed-client-id` /
-   `lightspeed-client-secret`). This mode uses a dedicated service account
-   for all MCP calls regardless of the end user.
-
-   > **Note:** This mode is not used in the Google Cloud Marketplace
-   > deployment, since the agent serves multiple customers from a shared
-   > instance and does not have per-customer environment variables.
-
-2. **Priority 2 — Token pass-through**: If no service account credentials are
-   configured, the agent forwards the caller's Bearer token (stored in the
-   request-scoped `ContextVar` during middleware processing) as an
-   `Authorization: Bearer <token>` header. The MCP server and downstream
-   Lightspeed APIs validate this token independently. This mode preserves the
-   user's identity end-to-end.
+The agent forwards the caller's Bearer token (stored in the request-scoped
+`ContextVar` during middleware processing) as an `Authorization: Bearer <token>`
+header. The MCP server and downstream Lightspeed APIs validate this token
+independently. This mode preserves the user's identity end-to-end.
 
 **Transport modes:**
 
 - **HTTP/SSE transport**: Headers are injected directly into HTTP requests
   to the MCP server.
-- **stdio transport**: Credentials are passed via environment variables
-  (`LIGHTSPEED_CLIENT_ID` / `LIGHTSPEED_CLIENT_SECRET`) to the MCP server
-  process at startup.
+- **stdio transport**: Not applicable for the Marketplace deployment.
 
 **Error paths:**
 
 | Failure | Behaviour |
 |---|---|
-| No credentials available (no service account configured and no Bearer token in request context) | Warning logged: `No MCP credentials available`; empty headers sent — MCP server will reject the unauthenticated request |
+| No Bearer token in request context | Warning logged: `No MCP credentials available`; empty headers sent — MCP server will reject the unauthenticated request |
 | Forwarded access token is expired | Warning logged: `Access token expired at {exp}`; token is still forwarded — MCP server will reject it and the error propagates back to the caller |
 | MCP server or downstream Lightspeed API rejects the token | MCP tool call returns an error result; the agent surfaces this in the A2A response to Gemini Enterprise |
 

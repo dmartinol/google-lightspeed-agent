@@ -421,31 +421,36 @@ class ProcurementService:
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(url, headers=headers, timeout=30.0)
+        except httpx.RequestError as e:
+            # Transient network error — re-raise so Pub/Sub retries
+            raise RuntimeError(
+                f"Network error resolving account for entitlement {entitlement_id}: {e}"
+            ) from e
 
-            if response.status_code == 200:
-                data = response.json()
-                # account field is "providers/{provider}/accounts/{id}"
-                account_ref = data.get("account", "")
-                if "/accounts/" in account_ref:
-                    account_id = str(account_ref.rsplit("/accounts/", 1)[1])
-                    logger.info(
-                        "Resolved account %s for entitlement %s via API",
-                        account_id,
-                        entitlement_id,
-                    )
-                    return account_id
-            else:
-                logger.warning(
-                    "Failed to fetch entitlement %s: HTTP %s — %s",
+        if response.status_code == 200:
+            data = response.json()
+            # account field is "providers/{provider}/accounts/{id}"
+            account_ref = data.get("account", "")
+            if "/accounts/" in account_ref:
+                account_id = str(account_ref.rsplit("/accounts/", 1)[1])
+                logger.info(
+                    "Resolved account %s for entitlement %s via API",
+                    account_id,
                     entitlement_id,
-                    response.status_code,
-                    response.text,
                 )
-        except Exception as e:
+                return account_id
+        elif response.status_code == 404:
+            # Entitlement not found — permanent failure, return None
             logger.warning(
-                "Error fetching entitlement %s for account resolution: %s",
+                "Entitlement %s not found in Procurement API (404)",
                 entitlement_id,
-                e,
+            )
+        else:
+            logger.warning(
+                "Failed to fetch entitlement %s: HTTP %s — %s",
+                entitlement_id,
+                response.status_code,
+                response.text,
             )
 
         return None

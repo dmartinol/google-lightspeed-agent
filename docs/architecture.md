@@ -100,7 +100,7 @@ The system is split into two services for important operational reasons:
 | **Marketplace Handler** | Handles provisioning and DCR | Always running (minScale=1) |
 | **Lightspeed Agent** | AI agent for user queries | Deployed after provisioning |
 
-1. **Marketplace Handler must be always running** to receive Pub/Sub events from Google Cloud Marketplace for entitlement approvals
+1. **Marketplace Handler must be always running** to receive Pub/Sub events from Google Cloud Marketplace for account and entitlement approvals
 2. **Agent can be deployed on-demand** after a customer has been provisioned
 3. **Separation of concerns**: Provisioning logic is isolated from agent logic
 4. **Independent scaling**: Handler scales for provisioning traffic, Agent scales for user traffic
@@ -112,7 +112,7 @@ The system is split into two services for important operational reasons:
 A separate FastAPI application for provisioning, providing:
 
 - **Hybrid /dcr Endpoint**: Single endpoint handling both:
-  - Pub/Sub events (entitlement approvals, filtered by product)
+  - Pub/Sub events (account and entitlement approvals, filtered by product)
   - DCR requests (OAuth client creation)
 - **Health Endpoints**: Kubernetes-compatible health checks
 - **Database Access**: PostgreSQL for persistent storage

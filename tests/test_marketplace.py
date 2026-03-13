@@ -1,12 +1,13 @@
 """Tests for Marketplace Procurement integration."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
 
 from lightspeed_agent.marketplace.models import (
     Account,
+    AccountInfo,
     AccountState,
     Entitlement,
     EntitlementInfo,
@@ -367,3 +368,191 @@ class TestProcurementService:
         with patch.object(service, "_settings") as mock_settings:
             mock_settings.google_cloud_project = None
             await service.process_event(event)
+
+    # --- _resolve_account_id tests ---
+
+    @pytest.mark.asyncio
+    async def test_resolve_account_id_from_event(self, service):
+        """Test _resolve_account_id returns account ID from event payload."""
+        event = ProcurementEvent(
+            event_id="event-1",
+            event_type=ProcurementEventType.ENTITLEMENT_CREATION_REQUESTED,
+            provider_id="provider-1",
+            account=AccountInfo(id="account-from-event"),
+            entitlement=EntitlementInfo(id="order-1"),
+        )
+
+        result = await service._resolve_account_id("order-1", event)
+        assert result == "account-from-event"
+
+    @pytest.mark.asyncio
+    async def test_resolve_account_id_from_api(self, service):
+        """Test _resolve_account_id fetches from Procurement API when event has no account."""
+        event = ProcurementEvent(
+            event_id="event-1",
+            event_type=ProcurementEventType.ENTITLEMENT_CREATION_REQUESTED,
+            provider_id="provider-1",
+            entitlement=EntitlementInfo(id="order-1"),
+        )
+
+        mock_response = httpx.Response(
+            status_code=200,
+            json={"account": "providers/proj/accounts/account-from-api"},
+            request=httpx.Request("GET", "https://example.com"),
+        )
+        with (
+            patch.object(service, "_settings") as mock_settings,
+            patch.object(service, "_get_auth_headers", return_value={"Authorization": "Bearer tok"}),
+            patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=mock_response),
+        ):
+            mock_settings.google_cloud_project = "test-project"
+            result = await service._resolve_account_id("order-1", event)
+
+        assert result == "account-from-api"
+
+    @pytest.mark.asyncio
+    async def test_resolve_account_id_api_404(self, service):
+        """Test _resolve_account_id returns None on 404."""
+        event = ProcurementEvent(
+            event_id="event-1",
+            event_type=ProcurementEventType.ENTITLEMENT_CREATION_REQUESTED,
+            provider_id="provider-1",
+            entitlement=EntitlementInfo(id="order-1"),
+        )
+
+        mock_response = httpx.Response(
+            status_code=404,
+            text="Not Found",
+            request=httpx.Request("GET", "https://example.com"),
+        )
+        with (
+            patch.object(service, "_settings") as mock_settings,
+            patch.object(service, "_get_auth_headers", return_value={}),
+            patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=mock_response),
+        ):
+            mock_settings.google_cloud_project = "test-project"
+            result = await service._resolve_account_id("order-1", event)
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_resolve_account_id_network_error_raises(self, service):
+        """Test _resolve_account_id raises RuntimeError on transient network errors."""
+        event = ProcurementEvent(
+            event_id="event-1",
+            event_type=ProcurementEventType.ENTITLEMENT_CREATION_REQUESTED,
+            provider_id="provider-1",
+            entitlement=EntitlementInfo(id="order-1"),
+        )
+
+        with (
+            patch.object(service, "_settings") as mock_settings,
+            patch.object(service, "_get_auth_headers", return_value={}),
+            patch(
+                "httpx.AsyncClient.get",
+                new_callable=AsyncMock,
+                side_effect=httpx.ConnectError("connection refused"),
+            ),
+        ):
+            mock_settings.google_cloud_project = "test-project"
+            with pytest.raises(RuntimeError, match="Network error resolving account"):
+                await service._resolve_account_id("order-1", event)
+
+    # --- _approve_account tests ---
+
+    @pytest.mark.asyncio
+    async def test_approve_account_succeeds(self, service):
+        """Test _approve_account succeeds on HTTP 200."""
+        mock_response = httpx.Response(
+            status_code=200,
+            request=httpx.Request("POST", "https://example.com"),
+        )
+        with (
+            patch.object(service, "_settings") as mock_settings,
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_response),
+        ):
+            mock_settings.google_cloud_project = "test-project"
+            # Should not raise
+            await service._approve_account("account-123")
+
+    @pytest.mark.asyncio
+    async def test_approve_account_already_processed(self, service):
+        """Test _approve_account handles 400 (already approved) gracefully."""
+        mock_response = httpx.Response(
+            status_code=400,
+            text="Account already approved",
+            request=httpx.Request("POST", "https://example.com"),
+        )
+        with (
+            patch.object(service, "_settings") as mock_settings,
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_response),
+        ):
+            mock_settings.google_cloud_project = "test-project"
+            # Should not raise — 400 is treated as idempotent success
+            await service._approve_account("account-123")
+
+    @pytest.mark.asyncio
+    async def test_approve_account_raises_on_non_200(self, service):
+        """Test _approve_account raises RuntimeError on non-200/400 response."""
+        mock_response = httpx.Response(
+            status_code=403,
+            text="Forbidden",
+            request=httpx.Request("POST", "https://example.com"),
+        )
+        with (
+            patch.object(service, "_settings") as mock_settings,
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_response),
+        ):
+            mock_settings.google_cloud_project = "test-project"
+            with pytest.raises(RuntimeError, match="Failed to approve account"):
+                await service._approve_account("account-123")
+
+    # --- _handle_entitlement_offer_accepted tests ---
+
+    @pytest.mark.asyncio
+    async def test_handle_entitlement_offer_accepted(self, service):
+        """Test ENTITLEMENT_OFFER_ACCEPTED creates entitlement and approves."""
+        event = ProcurementEvent(
+            event_id="event-offer",
+            event_type=ProcurementEventType.ENTITLEMENT_OFFER_ACCEPTED,
+            provider_id="provider-1",
+            account=AccountInfo(id="account-1"),
+            entitlement=EntitlementInfo(id="order-offer", new_plan="premium"),
+        )
+
+        with (
+            patch.object(service, "_approve_account", new_callable=AsyncMock) as mock_acct,
+            patch.object(service, "_approve_entitlement", new_callable=AsyncMock) as mock_ent,
+        ):
+            await service.process_event(event)
+
+        mock_acct.assert_awaited_once_with("account-1")
+        mock_ent.assert_awaited_once_with("order-offer")
+        ent = await service._entitlement_repo.get("order-offer")
+        assert ent is not None
+        assert ent.state == EntitlementState.ACTIVE
+        assert ent.plan == "premium"
+
+    # --- product metadata test ---
+
+    @pytest.mark.asyncio
+    async def test_entitlement_creation_stores_product_metadata(self, service):
+        """Test ENTITLEMENT_CREATION_REQUESTED stores product in metadata."""
+        event = ProcurementEvent(
+            event_id="event-prod",
+            event_type=ProcurementEventType.ENTITLEMENT_CREATION_REQUESTED,
+            provider_id="provider-1",
+            entitlement=EntitlementInfo(
+                id="order-with-product",
+                new_plan="basic",
+                product="products/my-service.endpoints.proj.cloud.goog",
+            ),
+        )
+
+        with patch.object(service, "_settings") as mock_settings:
+            mock_settings.google_cloud_project = None
+            await service.process_event(event)
+
+        ent = await service._entitlement_repo.get("order-with-product")
+        assert ent is not None
+        assert ent.metadata["product_id"] == "products/my-service.endpoints.proj.cloud.goog"
