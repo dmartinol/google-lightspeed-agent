@@ -45,11 +45,7 @@ class TokenIntrospector:
         self._introspection_url = self._settings.keycloak_introspection_endpoint
         self._client_id = self._settings.red_hat_sso_client_id
         self._client_secret = self._settings.red_hat_sso_client_secret
-        self._required_scopes = [
-            s.strip()
-            for s in self._settings.agent_required_scope.split(",")
-            if s.strip()
-        ]
+        self._required_scopes = self._settings.required_scopes_list
 
     async def validate_token(self, token: str) -> AuthenticatedUser:
         """Validate a Bearer token via introspection.

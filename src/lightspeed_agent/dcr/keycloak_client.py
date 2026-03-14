@@ -104,9 +104,7 @@ class KeycloakDCRClient:
             ],
             "token_endpoint_auth_method": "client_secret_basic",
             "application_type": "web",
-            "scope": " ".join(
-                s.strip() for s in settings.agent_required_scope.split(",") if s.strip()
-            ),
+            "scope": " ".join(settings.required_scopes_list),
         }
 
         headers = {

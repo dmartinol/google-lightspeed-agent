@@ -231,6 +231,11 @@ class Settings(BaseSettings):
     )
 
     @property
+    def required_scopes_list(self) -> list[str]:
+        """Parse comma-separated agent_required_scope into a list."""
+        return [s.strip() for s in self.agent_required_scope.split(",") if s.strip()]
+
+    @property
     def keycloak_introspection_endpoint(self) -> str:
         """Get the Keycloak token introspection endpoint URL."""
         return f"{self.red_hat_sso_issuer}/protocol/openid-connect/token/introspect"
