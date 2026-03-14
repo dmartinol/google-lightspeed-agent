@@ -132,6 +132,28 @@ class TestTokenIntrospector:
                 await introspector.validate_token("no-scope-token")
 
     @pytest.mark.asyncio
+    async def test_partial_scope_match(self, introspector):
+        """Test that a token with only one of two required scopes raises InsufficientScopeError."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "active": True,
+            "sub": "user-123",
+            "scope": "openid api.console",
+            "exp": int(time.time()) + 3600,
+        }
+
+        with patch("httpx.AsyncClient") as mock_client:
+            mock_instance = AsyncMock()
+            mock_instance.post.return_value = mock_response
+            mock_instance.__aenter__.return_value = mock_instance
+            mock_instance.__aexit__.return_value = None
+            mock_client.return_value = mock_instance
+
+            with pytest.raises(InsufficientScopeError, match="api.ocm"):
+                await introspector.validate_token("partial-scope-token")
+
+    @pytest.mark.asyncio
     async def test_introspection_http_error(self, introspector):
         """Test that HTTP errors from introspection raise TokenValidationError."""
         mock_response = MagicMock()
