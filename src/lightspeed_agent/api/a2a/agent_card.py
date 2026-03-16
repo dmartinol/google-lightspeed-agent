@@ -116,7 +116,7 @@ def build_agent_card() -> AgentCard:
 
     provider = AgentProvider(
         organization="Red Hat",
-        url="https://www.redhat.com",
+        url=settings.agent_provider_organization_url,
     )
 
     oauth_scheme = _build_oauth_security_scheme()

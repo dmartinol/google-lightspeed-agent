@@ -783,7 +783,7 @@ The test script at `scripts/test_dcr.py` is configurable via environment variabl
 | `TEST_SA_KEY_FILE` | | Path to SA key JSON file (Method A, recommended) |
 | `TEST_SERVICE_ACCOUNT` | | SA email for IAM Credentials API (Method B) |
 | `MARKETPLACE_HANDLER_URL` | `http://localhost:8001` | Marketplace handler base URL |
-| `PROVIDER_URL` | `https://your-agent-domain.com` | JWT audience (must match handler's `AGENT_PROVIDER_URL`) |
+| `PROVIDER_URL` | `https://www.redhat.com` | JWT audience (must match handler's `AGENT_PROVIDER_ORGANIZATION_URL`) |
 | `TEST_ORDER_ID` | random UUID | Marketplace order ID |
 | `TEST_ACCOUNT_ID` | `test-procurement-account-001` | Procurement account ID |
 | `TEST_REDIRECT_URIS` | `https://gemini.google.com/callback` | Comma-separated redirect URIs |

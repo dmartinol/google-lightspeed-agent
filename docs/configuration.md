@@ -79,7 +79,8 @@ MCP_READ_ONLY=true
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `AGENT_PROVIDER_URL` | `https://localhost:8000` | Agent public URL (for AgentCard) |
+| `AGENT_PROVIDER_URL` | `https://localhost:8000` | Agent base URL (where the A2A agent can be reached) |
+| `AGENT_PROVIDER_ORGANIZATION_URL` | `https://www.redhat.com` | Provider's organization website URL. Used in AgentCard `provider.url` and as the expected JWT audience for Google DCR |
 | `AGENT_NAME` | `lightspeed_agent` | Agent name |
 | `AGENT_DESCRIPTION` | Red Hat Lightspeed Agent for Google Cloud | Agent description |
 | `AGENT_HOST` | `0.0.0.0` | Server bind address |

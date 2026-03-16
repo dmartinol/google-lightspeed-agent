@@ -70,6 +70,12 @@ spec:
               value: "lightspeed_agent"
             - name: AGENT_PROVIDER_URL
               value: "https://lightspeed-agent.example.com"
+            # Agent provider's organization website URL.
+            # Used in AgentCard provider.url and as the expected JWT audience
+            # for Google DCR software_statement validation.
+            # Must match the aud claim Google sends in the software_statement.
+            - name: AGENT_PROVIDER_ORGANIZATION_URL
+              value: "https://www.redhat.com"
             # Marketplace handler URL for DCR endpoints in the AgentCard.
             # Must point to the marketplace-handler Cloud Run service.
             # Updated automatically by deploy.sh after deployment.

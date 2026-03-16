@@ -129,7 +129,7 @@ The `software_statement` JWT from Google contains:
 | Claim | Description |
 |-------|-------------|
 | `iss` | Google certificate URL (for signature verification) |
-| `aud` | Agent's provider URL (`AGENT_PROVIDER_URL`) |
+| `aud` | Agent provider's organization URL (`AGENT_PROVIDER_ORGANIZATION_URL`) |
 | `sub` | Procurement Account ID |
 | `google.order` | Marketplace Order ID (validated against database) |
 | `auth_app_redirect_uris` | Redirect URIs for the OAuth client |

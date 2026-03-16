@@ -70,7 +70,15 @@ class Settings(BaseSettings):
     # Agent Configuration
     agent_provider_url: str = Field(
         default="https://localhost:8000",
-        description="Agent provider URL for AgentCard",
+        description="Agent base URL (where the A2A agent can be reached)",
+    )
+    agent_provider_organization_url: str = Field(
+        default="https://www.redhat.com",
+        description=(
+            "Agent provider's organization website URL."
+            " Used in AgentCard provider.url and as the expected JWT audience"
+            " for Google DCR software_statement validation."
+        ),
     )
     agent_name: str = Field(
         default="lightspeed_agent",

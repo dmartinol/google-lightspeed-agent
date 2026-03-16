@@ -360,9 +360,11 @@ export MARKETPLACE_HANDLER_URL="$HANDLER_URL"
 
 **Step 3: Deploy the agent**
 
-The deploy script automatically sets `AGENT_PROVIDER_URL`
+The deploy script automatically sets `AGENT_PROVIDER_URL` (agent base URL)
 and `MARKETPLACE_HANDLER_URL` on the agent service using the actual
-Cloud Run URLs after deployment.
+Cloud Run URLs after deployment. `AGENT_PROVIDER_ORGANIZATION_URL`
+(the provider's website, used as the JWT audience for DCR) is set in the
+YAML configs and does not change per deployment.
 
 ```bash
 ./deploy/cloudrun/deploy.sh --service agent --allow-unauthenticated
@@ -663,6 +665,7 @@ Bearer token that is active and carries the `agent:insights` scope.
 | `redhat-sso-client-id` | Resource Server client ID (used for token introspection) |
 | `redhat-sso-client-secret` | Resource Server client secret |
 | `MARKETPLACE_HANDLER_URL` | URL of the marketplace-handler service. Used to build the DCR endpoints in the AgentCard. If empty, falls back to `AGENT_PROVIDER_URL`. Set automatically by `deploy.sh`. |
+| `AGENT_PROVIDER_ORGANIZATION_URL` | Provider's organization website URL (default: `https://www.redhat.com`). Used in AgentCard `provider.url` and as the expected JWT audience for Google DCR `software_statement` validation. Set in YAML configs, not changed by `deploy.sh`. |
 | `AGENT_REQUIRED_SCOPE` | OAuth scope required in tokens (default: `agent:insights`) |
 
 ### Development Mode
@@ -1757,7 +1760,7 @@ The test script at `scripts/test_deployed_dcr.py` is configurable via environmen
 | `MARKETPLACE_HANDLER_URL` | (required) | Cloud Run handler URL |
 | `TEST_SA_KEY_FILE` | - | Path to SA key file (Method A) |
 | `TEST_SERVICE_ACCOUNT` | - | SA email for IAM API signing (Method B) |
-| `PROVIDER_URL` | `https://your-agent-domain.com` | JWT audience claim |
+| `PROVIDER_URL` | `https://www.redhat.com` | JWT audience claim (must match handler's `AGENT_PROVIDER_ORGANIZATION_URL`) |
 | `SKIP_CLOUD_RUN_AUTH` | `false` | Skip Cloud Run ID token auth |
 | `TEST_ORDER_ID` | random UUID | Fixed order ID |
 | `TEST_ACCOUNT_ID` | `test-procurement-account-001` | Procurement account ID |

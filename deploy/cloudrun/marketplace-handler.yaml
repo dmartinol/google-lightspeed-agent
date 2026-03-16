@@ -77,6 +77,12 @@ spec:
             # Red Hat SSO Configuration
             - name: RED_HAT_SSO_ISSUER
               value: "https://sso.redhat.com/auth/realms/redhat-external"
+            # Agent provider's organization website URL.
+            # Used as the expected JWT audience for Google DCR
+            # software_statement validation. Must match the aud claim
+            # Google sends in the software_statement.
+            - name: AGENT_PROVIDER_ORGANIZATION_URL
+              value: "https://www.redhat.com"
             # Ensure production environment do not skip JWT validation
             - name: SKIP_JWT_VALIDATION
               value: "false"

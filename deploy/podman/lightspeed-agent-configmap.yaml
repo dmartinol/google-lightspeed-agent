@@ -30,6 +30,10 @@ data:
 
   # Agent Configuration
   AGENT_PROVIDER_URL: "http://localhost:8000"
+  # Agent provider's organization website URL.
+  # Used in AgentCard provider.url and as the expected JWT audience
+  # for Google DCR software_statement validation.
+  AGENT_PROVIDER_ORGANIZATION_URL: "https://www.redhat.com"
   AGENT_NAME: "lightspeed_agent"
   AGENT_DESCRIPTION: "Red Hat Lightspeed Agent for Google Cloud"
   AGENT_HOST: "0.0.0.0"

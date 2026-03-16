@@ -88,9 +88,9 @@ Environment variables
         Email of the GCP service account used to sign the JWT via the
         IAM Credentials API.  Ignored if TEST_SA_KEY_FILE is set.
 
-    PROVIDER_URL  (default: https://your-agent-domain.com)
+    PROVIDER_URL  (default: https://www.redhat.com)
         Expected audience (aud) claim.  Must match the handler's
-        AGENT_PROVIDER_URL setting.
+        AGENT_PROVIDER_ORGANIZATION_URL setting.
 
     SKIP_CLOUD_RUN_AUTH  (default: false)
         Set to "true" to skip Cloud Run ID token authentication.
@@ -132,7 +132,7 @@ import requests
 # ---------------------------------------------------------------------------
 
 HANDLER_URL = os.environ.get("MARKETPLACE_HANDLER_URL", "")
-PROVIDER_URL = os.environ.get("PROVIDER_URL", "https://your-agent-domain.com")
+PROVIDER_URL = os.environ.get("PROVIDER_URL", "https://www.redhat.com")
 TEST_SERVICE_ACCOUNT = os.environ.get("TEST_SERVICE_ACCOUNT")
 TEST_SA_KEY_FILE = os.environ.get("TEST_SA_KEY_FILE")
 SKIP_CLOUD_RUN_AUTH = os.environ.get("SKIP_CLOUD_RUN_AUTH", "false").lower() == "true"

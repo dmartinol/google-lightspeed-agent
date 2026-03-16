@@ -96,8 +96,8 @@ The handler must be started with at least these environment variables:
     DCR_ENCRYPTION_KEY=<generate with: python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'>
     DATABASE_URL=sqlite+aiosqlite:///./lightspeed_agent.db
 
-    # Must match PROVIDER_URL below (or set AGENT_PROVIDER_URL on the handler)
-    AGENT_PROVIDER_URL=https://your-agent-domain.com
+    # Must match PROVIDER_URL below (or set AGENT_PROVIDER_ORGANIZATION_URL on the handler)
+    AGENT_PROVIDER_ORGANIZATION_URL=https://www.redhat.com
 
 ------------------------------------------------------------------------
 Local Keycloak setup (for real DCR testing)
@@ -228,9 +228,9 @@ Environment variables
     MARKETPLACE_HANDLER_URL  (default: http://localhost:8001)
         Base URL of the marketplace handler.
 
-    PROVIDER_URL  (default: https://your-agent-domain.com)
+    PROVIDER_URL  (default: https://www.redhat.com)
         Expected audience (aud) claim.  Must match the handler's
-        AGENT_PROVIDER_URL setting.
+        AGENT_PROVIDER_ORGANIZATION_URL setting.
 
     TEST_ORDER_ID  (optional)
         Fixed marketplace order ID.  If unset a random UUID is generated.
@@ -267,7 +267,7 @@ import requests
 # ---------------------------------------------------------------------------
 
 HANDLER_URL = os.environ.get("MARKETPLACE_HANDLER_URL", "http://localhost:8001")
-PROVIDER_URL = os.environ.get("PROVIDER_URL", "https://your-agent-domain.com")
+PROVIDER_URL = os.environ.get("PROVIDER_URL", "https://www.redhat.com")
 TEST_SERVICE_ACCOUNT = os.environ.get("TEST_SERVICE_ACCOUNT")
 TEST_SA_KEY_FILE = os.environ.get("TEST_SA_KEY_FILE")
 TEST_CLIENT_ID = os.environ.get("TEST_CLIENT_ID")

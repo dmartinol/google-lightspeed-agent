@@ -408,7 +408,11 @@ case "$DEPLOY_SERVICE" in
         echo ""
         show_service_info "$SERVICE_NAME"
 
-        # Update AGENT_PROVIDER_URL and MARKETPLACE_HANDLER_URL
+        # Update AGENT_PROVIDER_URL (agent base URL) and MARKETPLACE_HANDLER_URL
+        # on the agent service so the AgentCard advertises the correct URLs.
+        # Note: AGENT_PROVIDER_ORGANIZATION_URL (JWT audience for DCR) is set
+        # in service.yaml and does NOT change per deployment — it's the
+        # provider's website (e.g., https://www.redhat.com).
         service_url=$(gcloud run services describe "$SERVICE_NAME" \
             --region="$REGION" \
             --project="$PROJECT_ID" \
@@ -456,7 +460,9 @@ case "$DEPLOY_SERVICE" in
         echo ""
         show_service_info "$SERVICE_NAME"
 
-        # Update AGENT_PROVIDER_URL and MARKETPLACE_HANDLER_URL
+        # Update AGENT_PROVIDER_URL (agent base URL) and MARKETPLACE_HANDLER_URL
+        # on the agent service. AGENT_PROVIDER_ORGANIZATION_URL is set in
+        # service.yaml and does NOT change per deployment.
         service_url=$(gcloud run services describe "$SERVICE_NAME" \
             --region="$REGION" \
             --project="$PROJECT_ID" \
