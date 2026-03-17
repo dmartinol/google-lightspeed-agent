@@ -6,7 +6,9 @@ task management, and event conversion automatically.
 """
 
 import logging
+import re
 from typing import Any
+from urllib.parse import urlparse
 
 from a2a.server.apps import A2AFastAPIApplication
 from a2a.server.request_handlers import DefaultRequestHandler
@@ -66,7 +68,8 @@ def _get_session_service() -> Any:
                 db_url = db_url.replace("postgresql+aiopg", "postgresql+psycopg2")
 
             # Log which database is being used (without credentials)
-            db_host = db_url.split("@")[-1].split("/")[0] if "@" in db_url else "local"
+            parsed = urlparse(db_url)
+            db_host = parsed.hostname or parsed.query or "local"
             logger.info(
                 "Using DatabaseSessionService for session persistence (host=%s)",
                 db_host,
@@ -78,10 +81,14 @@ def _get_session_service() -> Any:
                 e,
             )
         except Exception as e:
+            # Sanitize error message to avoid leaking credentials from URLs
+            sanitized_msg = re.sub(
+                r"://[^@]+@", "://***@", str(e)
+            )
             logger.warning(
                 "Failed to initialize DatabaseSessionService (%s), "
                 "falling back to InMemorySessionService",
-                e,
+                sanitized_msg,
             )
 
     logger.info("Using InMemorySessionService for session management")

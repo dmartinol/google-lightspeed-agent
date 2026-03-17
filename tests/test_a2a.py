@@ -1,6 +1,7 @@
 """Tests for A2A protocol implementation."""
 
-from unittest.mock import AsyncMock, patch
+import logging
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from a2a.types import (
@@ -14,6 +15,7 @@ from a2a.types import (
 )
 from fastapi.testclient import TestClient
 
+from lightspeed_agent.api.a2a.a2a_setup import _get_session_service
 from lightspeed_agent.api.a2a.agent_card import build_agent_card, get_agent_card_dict
 from lightspeed_agent.api.app import create_app
 
@@ -266,3 +268,116 @@ class TestA2AEndpoints:
         data = response.json()
         assert data["jsonrpc"] == "2.0"
         assert "error" in data
+
+
+class TestGetSessionService:
+    """Tests for _get_session_service() session service factory."""
+
+    def test_cloudsql_host_logged_correctly(self, caplog):
+        """Test that Cloud SQL socket path is logged as host instead of empty string."""
+        cloudsql_url = (
+            "postgresql+asyncpg://sessions:secret_password@"
+            "/agent_sessions?host=/cloudsql/project:region:instance"
+        )
+        mock_settings = MagicMock()
+        mock_settings.session_database_url = cloudsql_url
+
+        mock_db_session = MagicMock()
+
+        with (
+            patch(
+                "lightspeed_agent.api.a2a.a2a_setup.get_settings",
+                return_value=mock_settings,
+            ),
+            patch(
+                "google.adk.sessions.DatabaseSessionService",
+                mock_db_session,
+            ),
+            caplog.at_level(logging.INFO),
+        ):
+            _get_session_service()
+
+        # Should log the query parameter (Cloud SQL socket), not an empty host
+        assert "host=/cloudsql/project:region:instance" in caplog.text
+        assert "host=)" not in caplog.text
+
+    def test_standard_host_logged_correctly(self, caplog):
+        """Test that a standard PostgreSQL host is logged correctly."""
+        standard_url = "postgresql+asyncpg://user:pass@db.example.com:5432/mydb"
+        mock_settings = MagicMock()
+        mock_settings.session_database_url = standard_url
+
+        mock_db_session = MagicMock()
+
+        with (
+            patch(
+                "lightspeed_agent.api.a2a.a2a_setup.get_settings",
+                return_value=mock_settings,
+            ),
+            patch(
+                "google.adk.sessions.DatabaseSessionService",
+                mock_db_session,
+            ),
+            caplog.at_level(logging.INFO),
+        ):
+            _get_session_service()
+
+        assert "host=db.example.com" in caplog.text
+
+    def test_credentials_not_leaked_on_init_failure(self, caplog):
+        """Test that database credentials are sanitized in error logs."""
+        db_url = (
+            "postgresql+asyncpg://sessions:8dnL1i3eo4GtqwUpKKhNVA@"
+            "/agent_sessions?host=/cloudsql/project:region:instance"
+        )
+        mock_settings = MagicMock()
+        mock_settings.session_database_url = db_url
+
+        error_msg = (
+            "Failed to create database engine for URL "
+            "'postgresql+psycopg2://sessions:8dnL1i3eo4GtqwUpKKhNVA@"
+            "/agent_sessions?host=/cloudsql/project:region:instance'"
+        )
+
+        with (
+            patch(
+                "lightspeed_agent.api.a2a.a2a_setup.get_settings",
+                return_value=mock_settings,
+            ),
+            patch(
+                "google.adk.sessions.DatabaseSessionService",
+                side_effect=RuntimeError(error_msg),
+            ),
+            caplog.at_level(logging.WARNING),
+        ):
+            service = _get_session_service()
+
+        # Should fall back to InMemorySessionService
+        from google.adk.sessions import InMemorySessionService
+
+        assert isinstance(service, InMemorySessionService)
+
+        # Password must not appear in logs
+        assert "8dnL1i3eo4GtqwUpKKhNVA" not in caplog.text
+
+        # But the sanitized URL structure should still be present for debugging
+        assert "://***@" in caplog.text
+
+    def test_fallback_to_inmemory_when_no_url(self, caplog):
+        """Test that InMemorySessionService is used when no session URL is set."""
+        mock_settings = MagicMock()
+        mock_settings.session_database_url = ""
+
+        with (
+            patch(
+                "lightspeed_agent.api.a2a.a2a_setup.get_settings",
+                return_value=mock_settings,
+            ),
+            caplog.at_level(logging.INFO),
+        ):
+            service = _get_session_service()
+
+        from google.adk.sessions import InMemorySessionService
+
+        assert isinstance(service, InMemorySessionService)
+        assert "InMemorySessionService" in caplog.text
