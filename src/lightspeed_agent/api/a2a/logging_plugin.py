@@ -47,34 +47,19 @@ class AgentLoggingPlugin(BasePlugin):
     async def before_run_callback(
         self, *, invocation_context: InvocationContext
     ) -> None:
-        invocation_id = (
-            getattr(invocation_context, "invocation_id", None)
-            if invocation_context
-            else None
-        )
-        agent_name = (
-            getattr(invocation_context, "agent_name", None)
-            if invocation_context
-            else None
-        )
         logger.info(
             "Agent run started (invocation_id=%s, agent=%s)",
-            invocation_id,
-            agent_name,
+            invocation_context.invocation_id,
+            invocation_context.agent_name,
         )
         return None
 
     async def after_run_callback(
         self, *, invocation_context: InvocationContext
     ) -> None:
-        invocation_id = (
-            getattr(invocation_context, "invocation_id", None)
-            if invocation_context
-            else None
-        )
         logger.info(
             "Agent run completed (invocation_id=%s)",
-            invocation_id,
+            invocation_context.invocation_id,
         )
         return None
 
@@ -83,12 +68,7 @@ class AgentLoggingPlugin(BasePlugin):
     async def before_model_callback(
         self, *, callback_context: CallbackContext, llm_request: Any
     ) -> Any | None:
-        agent_name = (
-            getattr(callback_context, "agent_name", None)
-            if callback_context
-            else None
-        )
-        logger.info("LLM call started (agent=%s)", agent_name)
+        logger.info("LLM call started (agent=%s)", callback_context.agent_name)
         return None
 
     async def after_model_callback(
@@ -104,11 +84,7 @@ class AgentLoggingPlugin(BasePlugin):
             input_tokens = getattr(usage, "prompt_token_count", 0) or 0
             output_tokens = getattr(usage, "candidates_token_count", 0) or 0
 
-        model_version = (
-            getattr(llm_response, "model_version", None)
-            if llm_response
-            else None
-        )
+        model_version = llm_response.model_version if llm_response else None
         finish_reason = None
         if llm_response and llm_response.content:
             parts = getattr(llm_response.content, "parts", None)
