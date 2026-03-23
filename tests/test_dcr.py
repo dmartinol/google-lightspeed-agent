@@ -5,6 +5,7 @@ import json
 import time
 from unittest.mock import AsyncMock, patch
 
+import httpx
 import pytest
 import pytest_asyncio
 from fastapi.testclient import TestClient
@@ -390,12 +391,23 @@ class TestPubSubHandler:
             "account": {"id": "account-xyz"},
         }
 
-        response = client.post("/dcr", json=self._make_pubsub_body(event_data))
+        mock_response = httpx.Response(
+            status_code=200, request=httpx.Request("POST", "https://fake")
+        )
+        with patch(
+            "httpx.AsyncClient.post",
+            new_callable=AsyncMock,
+            return_value=mock_response,
+        ) as mock_post:
+            response = client.post("/dcr", json=self._make_pubsub_body(event_data))
 
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "success"
         assert data["orderId"] is None
+        # Safety net: when google_cloud_project is unset the approval is skipped,
+        # so no Procurement API call should be made.
+        mock_post.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_entitlement_creation_requested_returns_order_id(self, client):
@@ -410,7 +422,18 @@ class TestPubSubHandler:
             },
         }
 
-        response = client.post("/dcr", json=self._make_pubsub_body(event_data))
+        mock_post = httpx.Response(status_code=200, request=httpx.Request("POST", "https://fake"))
+        # Mock _resolve_account_id response: "providers/{provider}/accounts/{account_id}"
+        mock_get = httpx.Response(
+            status_code=200,
+            json={"account": "providers/test-provider/accounts/acct-1"},
+            request=httpx.Request("GET", "https://fake"),
+        )
+        with (
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_post),
+            patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=mock_get),
+        ):
+            response = client.post("/dcr", json=self._make_pubsub_body(event_data))
 
         assert response.status_code == 200
         data = response.json()
