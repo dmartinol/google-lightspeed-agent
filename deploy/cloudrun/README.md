@@ -614,7 +614,7 @@ Client                     Agent                   MCP Server        console.red
 
 The agent uses **Red Hat SSO** (Keycloak) for authentication via **token
 introspection** (RFC 7662).  Requests to the A2A endpoint (POST /) require a
-Bearer token that is active and carries the `agent:insights` scope.
+Bearer token that is active and carries the `api.console` and `api.ocm` scopes.
 
 ### Authentication Flow
 
@@ -637,7 +637,7 @@ Bearer token that is active and carries the `agent:insights` scope.
      │    Bearer token │                    │                   │                     │
      ├────────────────►│ 4. Introspect      │                   │                     │
      │                 │    token + check   │                   │                     │
-     │                 │    agent:insights  │                   │                     │
+     │                 │    required scopes │                   │                     │
      │                 ├───────────────────►│                   │                     │
      │                 │                    │                   │                     │
      │                 │ 5. MCP tool call   │                   │                     │
@@ -666,7 +666,7 @@ Bearer token that is active and carries the `agent:insights` scope.
 | `redhat-sso-client-secret` | Resource Server client secret |
 | `MARKETPLACE_HANDLER_URL` | URL of the marketplace-handler service. Used to build the DCR endpoints in the AgentCard. If empty, falls back to `AGENT_PROVIDER_URL`. Set automatically by `deploy.sh`. |
 | `AGENT_PROVIDER_ORGANIZATION_URL` | Provider's organization website URL (default: `https://www.redhat.com`). Used in AgentCard `provider.url` and as the expected JWT audience for Google DCR `software_statement` validation. Set in YAML configs, not changed by `deploy.sh`. |
-| `AGENT_REQUIRED_SCOPE` | OAuth scope required in tokens (default: `agent:insights`) |
+| `AGENT_REQUIRED_SCOPE` | Comma-separated OAuth scopes required in tokens (default: `api.console,api.ocm`) |
 
 ### Development Mode
 
@@ -1096,14 +1096,14 @@ The A2A protocol requires specific fields. A common mistake is omitting
 }
 ```
 
-**"Token is missing required scope: agent:insights"**
+**"Token is missing required scope(s): api.console, api.ocm"**
 
-The agent requires the `agent:insights` scope in the access token by
-default. If your Red Hat SSO client is not configured to issue this scope,
+The agent requires the `api.console` and `api.ocm` scopes in the access token
+by default. If your Red Hat SSO client is not configured to issue these scopes,
 you will see:
 
 ```json
-{"jsonrpc":"2.0","error":{"code":-32003,"message":"Forbidden","data":{"detail":"Token is missing required scope: agent:insights"}},"id":null}
+{"jsonrpc":"2.0","error":{"code":-32003,"message":"Forbidden","data":{"detail":"Token is missing required scope(s): api.console, api.ocm"}},"id":null}
 ```
 
 To temporarily disable the scope check for testing, set `AGENT_REQUIRED_SCOPE`
@@ -1122,7 +1122,7 @@ To restore the scope requirement:
 gcloud run services update ${SERVICE_NAME:-lightspeed-agent} \
   --region=$GOOGLE_CLOUD_LOCATION \
   --project=$GOOGLE_CLOUD_PROJECT \
-  --update-env-vars="AGENT_REQUIRED_SCOPE=agent:insights"
+  --update-env-vars="AGENT_REQUIRED_SCOPE=api.console,api.ocm"
 ```
 
 This setting is also configurable in `service.yaml` via the
@@ -1406,13 +1406,13 @@ IAT=$(curl -s -X POST \
 echo "Initial Access Token: $IAT"
 ```
 
-#### 5. Create the `agent:insights` Scope and Resource Server Client
+#### 5. Create the `api.console` and `api.ocm` Scopes and Resource Server Client
 
-The agent validates tokens via introspection and checks for the `agent:insights`
-scope.  The scope must exist in the realm **before** DCR creates clients that
-reference it.
+The agent validates tokens via introspection and checks for the `api.console`
+and `api.ocm` scopes.  The scopes must exist in the realm **before** DCR
+creates clients that reference them.
 
-**Create the `agent:insights` client scope:**
+**Create the `api.console` and `api.ocm` client scopes:**
 
 ```bash
 # Get a fresh admin token (the one from step 4 expires after 60s)
@@ -1429,15 +1429,25 @@ curl -s -X POST "$KEYCLOAK_URL/admin/realms/test-realm/client-scopes" \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "agent:insights",
+    "name": "api.console",
     "protocol": "openid-connect",
     "attributes": {"include.in.token.scope": "true"}
   }'
 
-# Allow agent:insights in the DCR client registration policy.
+# Create the api.ocm scope
+curl -s -X POST "$KEYCLOAK_URL/admin/realms/test-realm/client-scopes" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "api.ocm",
+    "protocol": "openid-connect",
+    "attributes": {"include.in.token.scope": "true"}
+  }'
+
+# Allow api.console and api.ocm in the DCR client registration policy.
 # Keycloak restricts which scopes can be requested during DCR.
 # Get the "authenticated" Allowed Client Scopes policy and add
-# agent:insights to it.
+# api.console and api.ocm to it.
 POLICY=$(curl -s \
   "$KEYCLOAK_URL/admin/realms/test-realm/components?type=org.keycloak.services.clientregistration.policy.ClientRegistrationPolicy" \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
@@ -1445,7 +1455,7 @@ POLICY=$(curl -s \
 import sys, json
 for p in json.load(sys.stdin):
     if p.get('providerId') == 'allowed-client-templates' and p.get('subType') == 'authenticated':
-        p['config']['allowed-client-scopes'] = ['agent:insights']
+        p['config']['allowed-client-scopes'] = ['api.console', 'api.ocm']
         print(json.dumps(p))
         break
 ")
@@ -1487,13 +1497,23 @@ echo "RED_HAT_SSO_CLIENT_ID=lightspeed-agent"
 echo "RED_HAT_SSO_CLIENT_SECRET=$CLIENT_SECRET"
 ```
 
-**Assign `agent:insights` to the Resource Server client:**
+**Assign `api.console` and `api.ocm` to the Resource Server client:**
 
 ```bash
 # Get the scope UUID
 SCOPE_UUID=$(curl -s "$KEYCLOAK_URL/admin/realms/test-realm/client-scopes" \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
-  | python3 -c "import sys,json; print([s['id'] for s in json.load(sys.stdin) if s['name']=='agent:insights'][0])")
+  | python3 -c "import sys,json; print([s['id'] for s in json.load(sys.stdin) if s['name']=='api.console'][0])")
+
+# Add as optional scope to the client
+curl -s -X PUT \
+  "$KEYCLOAK_URL/admin/realms/test-realm/clients/$CLIENT_UUID/optional-client-scopes/$SCOPE_UUID" \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+
+# Get the api.ocm scope UUID
+SCOPE_UUID=$(curl -s "$KEYCLOAK_URL/admin/realms/test-realm/client-scopes" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  | python3 -c "import sys,json; print([s['id'] for s in json.load(sys.stdin) if s['name']=='api.ocm'][0])")
 
 # Add as optional scope to the client
 curl -s -X PUT \
@@ -1545,8 +1565,8 @@ echo -n "$CLIENT_SECRET" | \
     --data-file=- --project=$GOOGLE_CLOUD_PROJECT
 ```
 
-> **Note:** Keycloak assigns the `agent:insights` scope to DCR-created
-> clients because the DCR request includes `"scope": "agent:insights"` and
+> **Note:** Keycloak assigns the `api.console` and `api.ocm` scopes to DCR-created
+> clients because the DCR request includes `"scope": "api.console api.ocm"` and
 > the scope is in the Allowed Client Scopes registration policy (configured
 > above).  However, Keycloak does **not** enable `serviceAccountsEnabled`
 > from the DCR `grant_types` field.  After DCR, the agent automatically
@@ -1696,7 +1716,7 @@ python scripts/test_a2a_auth.py \
   --message "What systems have critical advisories?"
 ```
 
-The script requests `scope=openid agent:insights` via `client_credentials`
+The script requests `scope=openid api.console api.ocm` via `client_credentials`
 grant, then sends an A2A `message/send` request with the resulting Bearer token.
 
 To just get a token (e.g. for pasting into the A2A Inspector):

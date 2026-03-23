@@ -146,7 +146,7 @@ Gemini Enterprise                     Agent (Marketplace Handler)             Re
    - `grant_types`: `authorization_code`, `refresh_token`, `client_credentials`
    - `token_endpoint_auth_method`: `client_secret_basic`
    - `redirect_uris`: from the Google JWT claims
-   - `scope`: `agent:insights`
+   - `scope`: `api.console api.ocm`
 5. Enables service accounts on the new client via the Keycloak Admin API (for
    `client_credentials` grant support).
 6. Encrypts the `client_secret` (Fernet symmetric encryption) and stores the
@@ -368,7 +368,8 @@ Customer User          Gemini Enterprise            Red Hat SSO (Keycloak)      
      |   client_id=<ge_id>   |                              |                              |
      |   redirect_uri=<uri>  |                              |                              |
      |   scope=openid        |                              |                              |
-     |     agent:insights    |                              |                              |
+     |     api.console       |                              |                              |
+     |     api.ocm           |                              |                              |
      |   state=<csrf_state>  |                              |                              |
      |                       |                              |                              |
      |-- Follow redirect ----|----------------------------->|                              |
@@ -402,7 +403,7 @@ Customer User          Gemini Enterprise            Red Hat SSO (Keycloak)      
      |                       |      token_type: "Bearer",   |                              |
      |                       |      expires_in: 300,        |                              |
      |                       |      scope: "openid          |                              |
-     |                       |        agent:insights"       |                              |
+     |                       |        api.console api.ocm"  |                              |
      |                       |    } ------------------------|                              |
      |                       |                              |                              |
      |                       |   [Access token obtained — user is authenticated]           |
@@ -420,7 +421,7 @@ Customer User          Gemini Enterprise            Red Hat SSO (Keycloak)      
      (created via DCR or provided as static credentials)
    - `redirect_uri` = Gemini Enterprise's callback URL (from the registration
      `redirect_uris`)
-   - `scope` = `openid agent:insights`
+   - `scope` = `openid api.console api.ocm`
    - `state` = CSRF protection token
 3. The user sees the Red Hat SSO login page and authenticates with their
    **Red Hat credentials** (username/password, or federated SSO).
@@ -433,7 +434,7 @@ Customer User          Gemini Enterprise            Red Hat SSO (Keycloak)      
    - The `client_id` and `client_secret` (HTTP Basic or POST body)
 6. Red Hat SSO returns an **access token** (JWT), a refresh token, and token
    metadata. The access token contains the user's identity claims and the
-   granted scopes (including `agent:insights`).
+   granted scopes (including `api.console` and `api.ocm`).
 
 **Key point:** The user authenticates with their Red Hat identity. The access
 token is issued by Red Hat SSO and represents both the user's identity and the
@@ -485,7 +486,8 @@ Gemini Enterprise                  Lightspeed Agent                      Red Hat
      |                                    |      "active": true,                  |
      |                                    |      "sub": "<user-id>",              |
      |                                    |      "azp": "<ge-client-id>",         |
-     |                                    |      "scope": "openid agent:insights",|
+     |                                    |      "scope": "openid api.console     |
+     |                api.ocm",             |
      |                                    |      "preferred_username": "jdoe",    |
      |                                    |      "email": "jdoe@example.com",     |
      |                                    |      "org_id": "<org-id>",            |
@@ -493,7 +495,7 @@ Gemini Enterprise                  Lightspeed Agent                      Red Hat
      |                                    |    } ---------------------------------|
      |                                    |                                       |
      |                                    |-- Verify "active" == true             |
-     |                                    |-- Verify "agent:insights" in scopes   |
+     |                                    |-- Verify required scopes present      |
      |                                    |                                       |
      |                                    |-- Resolve order:                      |
      |                                    |   azp (ge-client-id)                  |
@@ -526,8 +528,9 @@ Gemini Enterprise                  Lightspeed Agent                      Red Hat
 
    c. **Validates** the introspection response:
       - `active` must be `true` (token is not expired/revoked).
-      - The `agent:insights` scope must be present in the token's scope list.
-        If missing, the agent returns `403 Forbidden`.
+      - The required scopes (`api.console` and `api.ocm`) must be present in
+        the token's scope list. If any are missing, the agent returns
+        `403 Forbidden`.
 
    d. **Resolves the order**: Uses the `azp` (authorized party) claim from
       the introspection response — this is the Gemini Enterprise `client_id`
@@ -571,13 +574,13 @@ Gemini Enterprise                  Lightspeed Agent                      Red Hat
      |                                    |                                       |
      |                                    |<-- { "active": true,                  |
      |                                    |      "scope": "openid" } -------------|
-     |                                    |   (missing agent:insights scope)      |
+     |                                    |   (missing required scopes)           |
      |                                    |                                       |
      |<-- 403 { code: -32003,             |                                       |
      |   message: "Forbidden",            |                                       |
      |   detail: "Token is missing        |                                       |
-     |     required scope:                |                                       |
-     |     agent:insights" } -------------|                                       |
+     |     required scope(s):             |                                       |
+     |     api.console, api.ocm" } -------|                                       |
      |                                    |                                       |
      |   --- OR ---                       |                                       |
      |                                    |                                       |
@@ -598,7 +601,7 @@ Gemini Enterprise                  Lightspeed Agent                      Red Hat
 | Token is expired or revoked (`active: false`) | 401 | -32001 | `Token is not active` |
 | Introspection endpoint returns non-200 | 401 | -32001 | `Introspection request failed (HTTP {status})` |
 | Network error calling introspection endpoint | 401 | -32001 | `HTTP error calling introspection endpoint: {error}` |
-| Token missing `agent:insights` scope | 403 | -32003 | `Token is missing required scope: agent:insights` |
+| Token missing required scope(s) | 403 | -32003 | `Token is missing required scope(s): api.console, api.ocm` |
 | `azp` client ID not found in credentials DB | 403 | -32003 | `No active order found for this client` |
 | Order ID not found in entitlements DB | 403 | -32003 | `No active order found for this client` |
 | Order state is not `ACTIVE` | 403 | -32003 | `No active order found for this client` |
@@ -712,8 +715,9 @@ independently. This mode preserves the user's identity end-to-end.
 - **Order-bound access**: Every authenticated request is tied to an active
   marketplace order. Cancelled or expired subscriptions are immediately
   rejected.
-- **Scope-based authorization**: The `agent:insights` scope must be present
-  in the access token. Tokens without this scope receive `403 Forbidden`.
+- **Scope-based authorization**: The `api.console` and `api.ocm` scopes must
+  be present in the access token. Tokens without these scopes receive
+  `403 Forbidden`.
 - **Secrets encrypted at rest**: All client secrets stored in the database are
   encrypted with Fernet (symmetric AES-128-CBC with HMAC-SHA256).
 - **Token introspection (not local JWT verification)**: The agent validates

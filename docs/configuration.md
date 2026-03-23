@@ -38,7 +38,7 @@ GOOGLE_CLOUD_LOCATION=us-central1
 | `RED_HAT_SSO_ISSUER` | `https://sso.redhat.com/auth/realms/redhat-external` | SSO issuer URL |
 | `RED_HAT_SSO_CLIENT_ID` | - | Resource Server client ID (used for token introspection) |
 | `RED_HAT_SSO_CLIENT_SECRET` | - | Resource Server client secret |
-| `AGENT_REQUIRED_SCOPE` | `agent:insights` | OAuth scope required in access tokens |
+| `AGENT_REQUIRED_SCOPE` | `api.console,api.ocm` | Comma-separated OAuth scopes required in access tokens |
 
 **Example:**
 

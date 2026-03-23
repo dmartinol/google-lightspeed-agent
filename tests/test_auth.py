@@ -23,7 +23,7 @@ def mock_settings():
         red_hat_sso_issuer="https://sso.redhat.com/auth/realms/redhat-external",
         red_hat_sso_client_id="test-client-id",
         red_hat_sso_client_secret="test-client-secret",
-        agent_required_scope="agent:insights",
+        agent_required_scope="api.console,api.ocm",
         skip_jwt_validation=False,
         debug=True,
     )
@@ -36,7 +36,7 @@ def dev_settings():
         red_hat_sso_issuer="https://sso.redhat.com/auth/realms/redhat-external",
         red_hat_sso_client_id="test-client-id",
         red_hat_sso_client_secret="test-client-secret",
-        agent_required_scope="agent:insights",
+        agent_required_scope="api.console,api.ocm",
         skip_jwt_validation=True,
         debug=True,
     )
@@ -64,7 +64,7 @@ class TestTokenIntrospector:
             "active": True,
             "sub": "user-123",
             "client_id": "gemini-order-abc",
-            "scope": "openid agent:insights",
+            "scope": "openid api.console api.ocm",
             "preferred_username": "testuser",
             "email": "test@example.com",
             "name": "Test User",
@@ -88,7 +88,8 @@ class TestTokenIntrospector:
             assert user.user_id == "user-123"
             assert user.client_id == "gemini-order-abc"
             assert user.email == "test@example.com"
-            assert "agent:insights" in user.scopes
+            assert "api.console" in user.scopes
+            assert "api.ocm" in user.scopes
             assert "openid" in user.scopes
 
     @pytest.mark.asyncio
@@ -127,8 +128,30 @@ class TestTokenIntrospector:
             mock_instance.__aexit__.return_value = None
             mock_client.return_value = mock_instance
 
-            with pytest.raises(InsufficientScopeError, match="agent:insights"):
+            with pytest.raises(InsufficientScopeError, match=r"api\.console.*api\.ocm"):
                 await introspector.validate_token("no-scope-token")
+
+    @pytest.mark.asyncio
+    async def test_partial_scope_match(self, introspector):
+        """Test that a token with only one of two required scopes raises InsufficientScopeError."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "active": True,
+            "sub": "user-123",
+            "scope": "openid api.console",
+            "exp": int(time.time()) + 3600,
+        }
+
+        with patch("httpx.AsyncClient") as mock_client:
+            mock_instance = AsyncMock()
+            mock_instance.post.return_value = mock_response
+            mock_instance.__aenter__.return_value = mock_instance
+            mock_instance.__aexit__.return_value = None
+            mock_client.return_value = mock_instance
+
+            with pytest.raises(InsufficientScopeError, match="api.ocm"):
+                await introspector.validate_token("partial-scope-token")
 
     @pytest.mark.asyncio
     async def test_introspection_http_error(self, introspector):
@@ -162,13 +185,14 @@ class TestTokenIntrospector:
 
     @pytest.mark.asyncio
     async def test_dev_mode_returns_dev_user(self, dev_introspector):
-        """Test that dev mode returns a default user with agent:insights scope."""
+        """Test that dev mode returns a default user with required scopes."""
         user = await dev_introspector.validate_token("any-token")
 
         assert isinstance(user, AuthenticatedUser)
         assert user.user_id == "dev-user"
         assert user.client_id == "dev-client"
-        assert "agent:insights" in user.scopes
+        assert "api.console" in user.scopes
+        assert "api.ocm" in user.scopes
 
     @pytest.mark.asyncio
     async def test_azp_preferred_over_client_id(self, introspector):
@@ -180,7 +204,7 @@ class TestTokenIntrospector:
             "sub": "user-123",
             "azp": "azp-client",
             "client_id": "other-client",
-            "scope": "openid agent:insights",
+            "scope": "openid api.console api.ocm",
             "exp": int(time.time()) + 3600,
         }
 

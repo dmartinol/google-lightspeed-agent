@@ -48,7 +48,8 @@ def _build_oauth_security_scheme() -> OAuth2SecurityScheme:
         "openid": "OpenID Connect scope",
         "profile": "User profile information",
         "email": "User email address",
-        "agent:insights": "Access to Red Hat Insights agent",
+        "api.console": "Access to Red Hat console APIs",
+        "api.ocm": "Access to Red Hat OpenShift Cluster Manager APIs",
     }
 
     auth_code_flow = AuthorizationCodeOAuthFlow(
@@ -136,7 +137,7 @@ def build_agent_card() -> AgentCard:
             "redhat_sso": SecurityScheme(root=oauth_scheme),
         },
         security=[
-            {"redhat_sso": ["openid", "agent:insights"]},
+            {"redhat_sso": ["openid", "api.console", "api.ocm"]},
         ],
         default_input_modes=["text"],
         default_output_modes=["text"],

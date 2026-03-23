@@ -88,12 +88,10 @@ spec:
             # Red Hat SSO Configuration
             - name: RED_HAT_SSO_ISSUER
               value: "https://sso.redhat.com/auth/realms/redhat-external"
-            # OAuth scope required in access tokens (checked via introspection).
+            # Comma-separated OAuth scopes required in access tokens (checked via introspection).
             # Set to empty string to disable scope checking.
             - name: AGENT_REQUIRED_SCOPE
-              value: ""
-            # Replace with the required scopes if any is needed
-            #  value: "agent:insights"
+              value: "api.console,api.ocm"
             # Ensure production environment do not skip JWT validation
             - name: SKIP_JWT_VALIDATION
               value: "false"

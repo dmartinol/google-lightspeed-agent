@@ -1,7 +1,7 @@
 """Authentication and authorization module.
 
 This module validates Bearer tokens via Keycloak token introspection (RFC 7662)
-and checks for the required ``agent:insights`` scope.  The agent acts as a
+and checks for the required scopes (``api.console``, ``api.ocm``).  The agent acts as a
 Resource Server — it does not proxy OAuth flows.
 """
 

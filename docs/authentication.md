@@ -7,7 +7,7 @@ This document describes the authentication mechanisms used by the Lightspeed Age
 The system uses three distinct authentication flows:
 
 1. **Dynamic Client Registration (DCR)** -- Handler creates per-order OAuth clients in Red Hat SSO
-2. **Token Introspection** -- Agent validates access tokens via Keycloak introspection endpoint (RFC 7662) and checks for `agent:insights` scope
+2. **Token Introspection** -- Agent validates access tokens via Keycloak introspection endpoint (RFC 7662) and checks for `api.console` and `api.ocm` scopes
 3. **MCP JWT Pass-Through** -- Agent forwards the caller's JWT token to the MCP sidecar, which uses it to call console.redhat.com APIs on behalf of the user
 
 Clients obtain access tokens directly from Red Hat SSO (Keycloak) using their DCR-issued credentials. The agent acts purely as a **Resource Server** — it validates incoming tokens but does not proxy or participate in the OAuth authorization flow.
@@ -99,7 +99,7 @@ Clients obtain access tokens directly from Red Hat SSO (Keycloak) using their DC
 | 3 | Handler -> Google | Fetch X.509 certificates to validate JWT signature |
 | 4 | Handler -> Red Hat SSO | Create OAuth client via Keycloak DCR endpoint |
 | 5 | Client -> Red Hat SSO | Client obtains access token directly from Keycloak (e.g., `client_credentials` grant) |
-| 6 | Agent -> Red Hat SSO | Introspect token on every A2A request; check `agent:insights` scope |
+| 6 | Agent -> Red Hat SSO | Introspect token on every A2A request; check `api.console` and `api.ocm` scopes |
 | 7 | Agent -> MCP Sidecar | Tool call with caller's JWT token in Authorization header |
 | 8 | MCP Sidecar -> console.redhat.com | Call Insights APIs using the forwarded JWT token |
 
@@ -193,8 +193,9 @@ mismatch issues when tokens are issued by DCR-created clients (each has its own
    `RED_HAT_SSO_CLIENT_ID` / `RED_HAT_SSO_CLIENT_SECRET` via HTTP Basic Auth
 4. **Check Active**: Keycloak returns `{"active": true/false, ...}`.
    If `active` is `false`, the agent returns **401 Unauthorized**.
-5. **Check Scope**: Agent checks that `agent:insights` is present in the
-   token's `scope` field.  If missing, the agent returns **403 Forbidden**.
+5. **Check Scope**: Agent checks that the required scopes (`api.console` and
+   `api.ocm`) are present in the token's `scope` field.  If any are missing,
+   the agent returns **403 Forbidden**.
 6. **Build User**: Agent maps the introspection response to an
    `AuthenticatedUser` for downstream use.
 
@@ -209,19 +210,18 @@ Token introspection delegates validation to Keycloak, which knows about all
 clients in the realm.  The agent only needs to confirm the token is active and
 carries the required scope.
 
-### Required Scope: `agent:insights`
+### Required Scopes: `api.console` and `api.ocm`
 
-Following the [reference implementation](https://github.com/ljogeiger/GE-A2A-Marketplace-Agent/tree/main/2_oauth)
-pattern of `agent:time`, the agent requires the `agent:insights` scope.  This
-scope must be:
+The agent requires the `api.console` and `api.ocm` scopes.  These scopes
+must be:
 
-1. Created as a Client Scope in the Keycloak realm
+1. Created as Client Scopes in the Keycloak realm
 2. Assigned to the agent's Resource Server client
 3. Included in DCR-created clients (via the `scope` field in the DCR request
    body per RFC 7591)
 
-The required scope is configurable via `AGENT_REQUIRED_SCOPE` (default:
-`agent:insights`).
+The required scopes are configurable via `AGENT_REQUIRED_SCOPE` (comma-separated,
+default: `api.console,api.ocm`).
 
 ### Introspection Response Fields
 
@@ -234,7 +234,7 @@ The agent extracts the following fields from the introspection response:
 | `preferred_username` | Username | Display name |
 | `email` | Email address | User contact |
 | `org_id` | Organization ID | Multi-tenancy |
-| `scope` | Space-separated scopes | Authorization (`agent:insights` check) |
+| `scope` | Space-separated scopes | Authorization (`api.console`, `api.ocm` check) |
 | `exp` | Token expiry (unix timestamp) | Session management |
 
 ## Using Authentication in API Calls
@@ -285,8 +285,8 @@ RED_HAT_SSO_ISSUER=https://sso.redhat.com/auth/realms/redhat-external
 RED_HAT_SSO_CLIENT_ID=your-client-id
 RED_HAT_SSO_CLIENT_SECRET=your-client-secret
 
-# Required scope checked during token introspection (default: agent:insights)
-AGENT_REQUIRED_SCOPE=agent:insights
+# Required scopes checked during token introspection (comma-separated, default: api.console,api.ocm)
+AGENT_REQUIRED_SCOPE=api.console,api.ocm
 ```
 
 ### Registering an OAuth Client
@@ -310,7 +310,7 @@ DEBUG=true
 **Warning**: Never enable this in production!
 
 When validation is skipped, a default development user is created with the
-`agent:insights` scope pre-granted:
+required scopes pre-granted:
 
 ```json
 {
@@ -318,7 +318,7 @@ When validation is skipped, a default development user is created with the
   "client_id": "dev-client",
   "username": "developer",
   "email": "dev@example.com",
-  "scopes": ["openid", "profile", "email", "agent:insights"]
+  "scopes": ["openid", "profile", "email", "api.console", "api.ocm"]
 }
 ```
 
@@ -392,7 +392,7 @@ For integration testing with real Red Hat SSO authentication:
    RED_HAT_SSO_ISSUER=https://sso.redhat.com/auth/realms/redhat-external
    RED_HAT_SSO_CLIENT_ID=your-registered-client-id
    RED_HAT_SSO_CLIENT_SECRET=your-client-secret
-   AGENT_REQUIRED_SCOPE=agent:insights
+   AGENT_REQUIRED_SCOPE=api.console,api.ocm
    ```
 
 2. **Start the API server**:
@@ -412,7 +412,7 @@ For integration testing with real Red Hat SSO authentication:
      -d "client_id=YOUR_CLIENT_ID" \
      -d "client_secret=YOUR_CLIENT_SECRET" \
      -d "grant_type=client_credentials" \
-     -d "scope=openid agent:insights" \
+     -d "scope=openid api.console api.ocm" \
      | python -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
    ```
 
@@ -475,9 +475,9 @@ Test how the system handles authentication errors:
 
 #### "Insufficient scope" / 403 Forbidden
 
-The token is valid but missing the `agent:insights` scope:
-1. Ensure the `agent:insights` Client Scope exists in the Keycloak realm
-2. Verify the scope is assigned to the client that issued the token
+The token is valid but missing a required scope:
+1. Ensure the `api.console` and `api.ocm` Client Scopes exist in the Keycloak realm
+2. Verify the scopes are assigned to the client that issued the token
 3. Check the token's scopes: `echo $TOKEN | cut -d. -f2 | base64 -d 2>/dev/null | jq .scope`
 
 #### "CORS errors" in browser
@@ -516,7 +516,7 @@ pytest tests/test_auth.py --cov=lightspeed_agent.auth
 | 401 | Missing credentials | No Authorization header |
 | 401 | Token not active | Introspection returned `active: false` (expired, revoked, or invalid) |
 | 401 | Introspection failed | HTTP error calling introspection endpoint |
-| 403 | Insufficient scope | Token is active but missing `agent:insights` scope |
+| 403 | Insufficient scope | Token is active but missing required scope(s) (`api.console`, `api.ocm`) |
 
 ### Error Response Format
 

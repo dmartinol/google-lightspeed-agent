@@ -15,7 +15,7 @@ data:
 
   # Red Hat SSO Configuration
   RED_HAT_SSO_ISSUER: "https://sso.redhat.com/auth/realms/redhat-external"
-  AGENT_REQUIRED_SCOPE: "agent:insights"
+  AGENT_REQUIRED_SCOPE: "api.console,api.ocm"
 
   # MCP Server Configuration (for agent)
   MCP_TRANSPORT_MODE: "http"

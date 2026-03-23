@@ -49,7 +49,7 @@ def get_token(token_url: str, client_id: str, client_secret: str) -> str:
     """Get an access token via client_credentials grant."""
     data = urlencode({
         "grant_type": "client_credentials",
-        "scope": "openid agent:insights",
+        "scope": "openid api.console api.ocm",
         "client_id": client_id,
         "client_secret": client_secret,
     }).encode("ascii")

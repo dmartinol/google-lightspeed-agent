@@ -221,11 +221,19 @@ class Settings(BaseSettings):
         ),
     )
 
-    # Agent required scope for token introspection
+    # Agent required scopes for token introspection (comma-separated)
     agent_required_scope: str = Field(
-        default="agent:insights",
-        description="OAuth scope required in access tokens. Checked via token introspection.",
+        default="api.console,api.ocm",
+        description=(
+            "Comma-separated OAuth scopes required in access tokens."
+            " Checked via token introspection."
+        ),
     )
+
+    @property
+    def required_scopes_list(self) -> list[str]:
+        """Parse comma-separated agent_required_scope into a list."""
+        return [s.strip() for s in self.agent_required_scope.split(",") if s.strip()]
 
     @property
     def keycloak_introspection_endpoint(self) -> str:
