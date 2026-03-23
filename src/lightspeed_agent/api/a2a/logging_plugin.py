@@ -85,19 +85,12 @@ class AgentLoggingPlugin(BasePlugin):
             output_tokens = getattr(usage, "candidates_token_count", 0) or 0
 
         model_version = llm_response.model_version if llm_response else None
-        finish_reason = None
-        if llm_response and llm_response.content:
-            parts = getattr(llm_response.content, "parts", None)
-            if parts:
-                finish_reason = getattr(parts[-1], "finish_reason", None)
 
         logger.info(
-            "LLM call completed (input_tokens=%d, output_tokens=%d, "
-            "model=%s, finish_reason=%s)",
+            "LLM call completed (input_tokens=%d, output_tokens=%d, model=%s)",
             input_tokens,
             output_tokens,
             model_version,
-            finish_reason,
         )
         return None
 
