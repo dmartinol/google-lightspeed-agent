@@ -1841,9 +1841,9 @@ sqlalchemy==2.0.47 \
     #   alembic
     #   google-adk
     #   sqlalchemy-spanner
-sqlalchemy-spanner==1.17.2 \
-    --hash=sha256:18713d4d78e0bf048eda0f7a5c80733e08a7b678b34349496415f37652efb12f \
-    --hash=sha256:56ce4da7168a27442d80ffd71c29ed639b5056d7e69b1e69bb9c1e10190b67c4
+sqlalchemy-spanner==1.17.3 \
+    --hash=sha256:b0a13d2cae3bb0ee5aac898c44d22f56ec3edfc7780dd7d165d51f676590daf3 \
+    --hash=sha256:ea829d8223c404f19f854c4c2dbf6bf2ee48fb1347caa258f03e88071f3afa22
     # via google-adk
 sqlparse==0.5.5 \
     --hash=sha256:12a08b3bf3eec877c519589833aed092e2444e68240a3577e8e26148acc7b1ba \
