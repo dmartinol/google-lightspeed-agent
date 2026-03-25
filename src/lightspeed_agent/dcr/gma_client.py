@@ -298,18 +298,18 @@ class GMAClient:
                 status_code=500,
             ) from e
 
-    async def delete_tenant(self, tenant_uuid: str) -> None:
-        """Delete a GMA tenant by UUID.
+    async def delete_tenant(self, client_id: str) -> None:
+        """Delete a GMA tenant by client ID.
 
         Args:
-            tenant_uuid: The UUID of the tenant to delete.
+            client_id: The client ID of the tenant to delete.
 
         Raises:
             GMAClientError: If the deletion fails.
         """
         token = await self.get_token()
         headers = {"Authorization": f"Bearer {token}"}
-        url = f"{self._api_base_url}{tenant_uuid}"
+        url = f"{self._api_base_url}{client_id}"
 
         try:
             if self._http_client:
@@ -323,7 +323,7 @@ class GMAClient:
                     )
 
             if response.status_code == 204:
-                logger.info("Deleted GMA tenant: %s", tenant_uuid)
+                logger.info("Deleted GMA tenant: %s", client_id)
                 return
 
             error_data = {}

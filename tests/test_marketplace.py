@@ -558,3 +558,63 @@ class TestProcurementService:
         ent = await service._entitlement_repo.get("order-with-product")
         assert ent is not None
         assert ent.metadata["product_id"] == "products/my-service.endpoints.proj.cloud.goog"
+
+    # --- OAuth client cleanup on cancellation/deletion ---
+
+    @pytest.mark.asyncio
+    async def test_entitlement_cancelled_deletes_oauth_client(self, service):
+        """Test ENTITLEMENT_CANCELLED triggers OAuth client deletion."""
+        # Pre-create the entitlement
+        ent = Entitlement(
+            id="order-cancel",
+            account_id="account-1",
+            state=EntitlementState.ACTIVE,
+            provider_id="provider-1",
+        )
+        await service._entitlement_repo.create(ent)
+
+        event = ProcurementEvent(
+            event_id="event-cancel",
+            event_type=ProcurementEventType.ENTITLEMENT_CANCELLED,
+            provider_id="provider-1",
+            entitlement=EntitlementInfo(
+                id="order-cancel",
+                cancellation_reason="Customer requested",
+            ),
+        )
+
+        mock_dcr = AsyncMock()
+        service._dcr_service = mock_dcr
+
+        await service.process_event(event)
+
+        mock_dcr.delete_client.assert_awaited_once_with("order-cancel")
+        updated = await service._entitlement_repo.get("order-cancel")
+        assert updated.state == EntitlementState.CANCELLED
+
+    @pytest.mark.asyncio
+    async def test_entitlement_deleted_deletes_oauth_client(self, service):
+        """Test ENTITLEMENT_DELETED triggers OAuth client deletion as safety net."""
+        ent = Entitlement(
+            id="order-delete",
+            account_id="account-1",
+            state=EntitlementState.CANCELLED,
+            provider_id="provider-1",
+        )
+        await service._entitlement_repo.create(ent)
+
+        event = ProcurementEvent(
+            event_id="event-delete",
+            event_type=ProcurementEventType.ENTITLEMENT_DELETED,
+            provider_id="provider-1",
+            entitlement=EntitlementInfo(id="order-delete"),
+        )
+
+        mock_dcr = AsyncMock()
+        service._dcr_service = mock_dcr
+
+        await service.process_event(event)
+
+        mock_dcr.delete_client.assert_awaited_once_with("order-delete")
+        updated = await service._entitlement_repo.get("order-delete")
+        assert updated.state == EntitlementState.DELETED

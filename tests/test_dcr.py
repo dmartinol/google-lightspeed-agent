@@ -277,6 +277,63 @@ class TestDCRService:
         assert client.account_id == "valid-account-123"
 
 
+class TestDCRServiceDelete:
+    """Tests for DCR service client deletion."""
+
+    @pytest_asyncio.fixture
+    async def service(self, db_session):
+        """Create a DCR service with a real repository."""
+        from lightspeed_agent.dcr.service import DCRService
+
+        return DCRService()
+
+    @pytest.mark.asyncio
+    async def test_delete_client_gma_mode(self, service):
+        """Test deleting a GMA-created client calls delete_tenant."""
+        encrypted_secret = service._encrypt_secret("test-secret")
+        await service._client_repository.create(
+            client_id="gma-client-123",
+            client_secret_encrypted=encrypted_secret,
+            order_id="order-gma-del",
+            account_id="account-1",
+            metadata={"registration_mode": "gma"},
+        )
+
+        mock_gma = AsyncMock()
+        service._gma_client = mock_gma
+
+        await service.delete_client("order-gma-del")
+
+        mock_gma.delete_tenant.assert_awaited_once_with("gma-client-123")
+        assert await service._client_repository.get_by_order_id("order-gma-del") is None
+
+    @pytest.mark.asyncio
+    async def test_delete_client_static_mode(self, service):
+        """Test deleting a static-credentials client skips GMA API."""
+        encrypted_secret = service._encrypt_secret("test-secret")
+        await service._client_repository.create(
+            client_id="static-client-123",
+            client_secret_encrypted=encrypted_secret,
+            order_id="order-static-del",
+            account_id="account-1",
+            metadata={"registration_mode": "static"},
+        )
+
+        mock_gma = AsyncMock()
+        service._gma_client = mock_gma
+
+        await service.delete_client("order-static-del")
+
+        mock_gma.delete_tenant.assert_not_awaited()
+        assert await service._client_repository.get_by_order_id("order-static-del") is None
+
+    @pytest.mark.asyncio
+    async def test_delete_client_not_found(self, service):
+        """Test deleting a non-existent client does nothing."""
+        await service.delete_client("order-nonexistent")
+        # No error raised
+
+
 class TestDCRRepository:
     """Tests for DCR client repository with database."""
 
@@ -314,6 +371,26 @@ class TestDCRRepository:
         client = await repo.get_by_order_id("order-unique")
         assert client is not None
         assert client.client_id == "test-client-456"
+
+    @pytest.mark.asyncio
+    async def test_delete_by_order_id_success(self, repo):
+        """Test deleting a client by order ID."""
+        await repo.create(
+            client_id="test-client-del",
+            client_secret_encrypted="encrypted-secret",
+            order_id="order-to-delete",
+            account_id="account-789",
+        )
+
+        result = await repo.delete_by_order_id("order-to-delete")
+        assert result is True
+        assert await repo.get_by_order_id("order-to-delete") is None
+
+    @pytest.mark.asyncio
+    async def test_delete_by_order_id_not_found(self, repo):
+        """Test deleting a non-existent order returns False."""
+        result = await repo.delete_by_order_id("order-nonexistent")
+        assert result is False
 
 
 class TestDCRRouter:

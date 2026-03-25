@@ -401,6 +401,42 @@ class DCRService:
                 error_description=f"Failed to create tenant: {e}",
             )
 
+    async def delete_client(self, order_id: str) -> None:
+        """Delete an OAuth client associated with a marketplace order.
+
+        For GMA-created clients, deletes the tenant from Red Hat SSO via the
+        GMA API before removing the local DB record. For static credentials,
+        only the local record is removed.
+
+        Args:
+            order_id: The marketplace order ID (entitlement ID).
+
+        Raises:
+            GMAClientError: If the GMA API deletion fails (caller should retry).
+        """
+        client = await self._client_repository.get_by_order_id(order_id)
+        if not client:
+            logger.info("No DCR client found for order_id=%s, nothing to delete", order_id)
+            return
+
+        registration_mode = client.metadata.get("registration_mode")
+
+        if registration_mode == "gma":
+            logger.info(
+                "Deleting GMA tenant for order %s: client_id=%s",
+                order_id,
+                client.client_id,
+            )
+            gma_client = self._get_gma_client()
+            await gma_client.delete_tenant(client.client_id)
+
+        await self._client_repository.delete_by_order_id(order_id)
+        logger.info(
+            "Deleted DCR client for order %s (mode=%s)",
+            order_id,
+            registration_mode,
+        )
+
     async def get_client(self, client_id: str) -> RegisteredClient | None:
         """Get a registered client by client_id.
 

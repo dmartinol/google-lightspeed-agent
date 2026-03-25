@@ -1,7 +1,13 @@
 """Procurement service for handling marketplace entitlements and accounts."""
 
+from __future__ import annotations
+
 import logging
 from datetime import datetime
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from lightspeed_agent.dcr.service import DCRService
 
 import httpx
 
@@ -35,14 +41,25 @@ class ProcurementService:
     def __init__(
         self,
         entitlement_repo: EntitlementRepository | None = None,
+        dcr_service: DCRService | None = None,
     ) -> None:
         """Initialize the procurement service.
 
         Args:
             entitlement_repo: Entitlement repository (uses default if not provided).
+            dcr_service: DCR service for OAuth client lifecycle (uses default if not provided).
         """
         self._entitlement_repo = entitlement_repo or get_entitlement_repository()
+        self._dcr_service = dcr_service
         self._settings = get_settings()
+
+    def _get_dcr_service(self) -> DCRService:
+        """Get the DCR service (lazy initialization)."""
+        if self._dcr_service is None:
+            from lightspeed_agent.dcr.service import get_dcr_service
+
+            self._dcr_service = get_dcr_service()
+        return self._dcr_service
 
     async def process_event(self, event: ProcurementEvent) -> None:
         """Process a procurement event.
@@ -358,7 +375,11 @@ class ProcurementService:
             logger.info("Entitlement cancelling: %s", event.entitlement.id)
 
     async def _handle_entitlement_cancelled(self, event: ProcurementEvent) -> None:
-        """Handle ENTITLEMENT_CANCELLED event."""
+        """Handle ENTITLEMENT_CANCELLED event.
+
+        Updates entitlement state and deletes the associated OAuth client
+        from Red Hat SSO (if created via GMA) and from the local DB.
+        """
         if not event.entitlement:
             return
 
@@ -369,8 +390,14 @@ class ProcurementService:
             await self._entitlement_repo.update(entitlement)
             logger.info("Entitlement cancelled: %s", event.entitlement.id)
 
+        await self._delete_oauth_client(event.entitlement.id)
+
     async def _handle_entitlement_deleted(self, event: ProcurementEvent) -> None:
-        """Handle ENTITLEMENT_DELETED event."""
+        """Handle ENTITLEMENT_DELETED event.
+
+        Updates entitlement state and ensures the associated OAuth client
+        is cleaned up (safety net if not already deleted on cancellation).
+        """
         if not event.entitlement:
             return
 
@@ -379,6 +406,26 @@ class ProcurementService:
             entitlement.state = EntitlementState.DELETED
             await self._entitlement_repo.update(entitlement)
             logger.info("Entitlement deleted: %s", event.entitlement.id)
+
+        await self._delete_oauth_client(event.entitlement.id)
+
+    async def _delete_oauth_client(self, order_id: str) -> None:
+        """Delete the OAuth client associated with a marketplace order.
+
+        Delegates to DCRService which handles GMA API deletion (if applicable)
+        and local DB cleanup. Errors propagate so Pub/Sub retries the event.
+
+        Args:
+            order_id: The marketplace order/entitlement ID.
+        """
+        try:
+            dcr_service = self._get_dcr_service()
+            await dcr_service.delete_client(order_id)
+        except Exception:
+            logger.exception(
+                "Failed to delete OAuth client for order %s", order_id
+            )
+            raise
 
     async def _handle_offer_ended(self, event: ProcurementEvent) -> None:
         """Handle ENTITLEMENT_OFFER_ENDED event."""
