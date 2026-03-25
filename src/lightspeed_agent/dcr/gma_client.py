@@ -94,7 +94,8 @@ class GMAClient:
 
         if not self._client_id or not self._client_secret:
             raise GMAClientError(
-                "GMA_CLIENT_ID and GMA_CLIENT_SECRET must be configured",
+                "GMA API authentication failed: "
+                "GMA_CLIENT_ID and GMA_CLIENT_SECRET environment variables are required",
                 status_code=500,
             )
 
@@ -144,7 +145,9 @@ class GMAClient:
                 error_data,
             )
             raise GMAClientError(
-                f"Failed to get GMA token: {error_data.get('error', 'Unknown error')}",
+                "GMA API authentication failed: "
+                f"token request returned {response.status_code} — "
+                f"{error_data.get('error', 'unknown error')}",
                 status_code=response.status_code,
                 details=error_data,
             )

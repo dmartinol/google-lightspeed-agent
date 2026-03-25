@@ -303,6 +303,15 @@ class Settings(BaseSettings):
             )
         return self
 
+    @model_validator(mode="after")
+    def _validate_dcr_config(self) -> "Settings":
+        """Ensure GMA credentials are set when DCR is enabled."""
+        if self.dcr_enabled and (not self.gma_client_id or not self.gma_client_secret):
+            raise ValueError(
+                "GMA_CLIENT_ID and GMA_CLIENT_SECRET must be set when DCR_ENABLED=true"
+            )
+        return self
+
     # OpenTelemetry Configuration
     otel_enabled: bool = Field(
         default=False,

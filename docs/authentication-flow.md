@@ -189,7 +189,7 @@ Gemini Enterprise                     Agent (Marketplace Handler)             Re
 | Claims cannot be parsed | 400 | `invalid_software_statement` | `Invalid claims format: {error}` |
 | Account ID (`sub`) is not ACTIVE | 400 | `unapproved_software_statement` | `Invalid Procurement Account ID: {account_id}` |
 | Order ID is not ACTIVE | 400 | `unapproved_software_statement` | `Invalid Order ID: {order_id}` |
-| GMA credentials not configured | 400 | `server_error` | `Failed to create OAuth tenant: GMA_CLIENT_ID and GMA_CLIENT_SECRET must be configured` |
+| GMA credentials not configured | 400 | `server_error` | `Failed to create OAuth tenant: GMA API authentication failed: GMA_CLIENT_ID and GMA_CLIENT_SECRET environment variables are required` |
 | GMA API returns error | 400 | `server_error` | `Failed to create OAuth tenant: Failed to create GMA tenant: {error}` |
 | Network error calling GMA API | 400 | `server_error` | `Failed to create OAuth tenant: HTTP error calling GMA API: {error}` |
 | Unexpected error creating tenant or storing credentials | 400 | `server_error` | `Failed to create tenant: {error}` |
