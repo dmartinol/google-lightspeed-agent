@@ -316,6 +316,7 @@ class TestGetSessionService:
             "/agent_sessions?host=/cloudsql/project:region:instance"
         )
         mock_settings = MagicMock()
+        mock_settings.session_backend = "database"
         mock_settings.session_database_url = cloudsql_url
 
         mock_db_session = MagicMock()
@@ -341,6 +342,7 @@ class TestGetSessionService:
         """Test that a standard PostgreSQL host is logged correctly."""
         standard_url = "postgresql+asyncpg://user:pass@db.example.com:5432/mydb"
         mock_settings = MagicMock()
+        mock_settings.session_backend = "database"
         mock_settings.session_database_url = standard_url
 
         mock_db_session = MagicMock()
@@ -360,13 +362,14 @@ class TestGetSessionService:
 
         assert "host=db.example.com" in caplog.text
 
-    def test_credentials_not_leaked_on_init_failure(self, caplog):
-        """Test that database credentials are sanitized in error logs."""
+    def test_credentials_not_leaked_on_init_failure(self):
+        """Test that database credentials are sanitized in error messages."""
         db_url = (
             "postgresql+asyncpg://sessions:8dnL1i3eo4GtqwUpKKhNVA@"
             "/agent_sessions?host=/cloudsql/project:region:instance"
         )
         mock_settings = MagicMock()
+        mock_settings.session_backend = "database"
         mock_settings.session_database_url = db_url
 
         error_msg = (
@@ -376,6 +379,10 @@ class TestGetSessionService:
         )
 
         with (
+            pytest.raises(
+                RuntimeError,
+                match=r"Failed to initialize DatabaseSessionService",
+            ) as exc_info,
             patch(
                 "lightspeed_agent.api.a2a.a2a_setup.get_settings",
                 return_value=mock_settings,
@@ -384,25 +391,19 @@ class TestGetSessionService:
                 "google.adk.sessions.DatabaseSessionService",
                 side_effect=RuntimeError(error_msg),
             ),
-            caplog.at_level(logging.WARNING),
         ):
-            service = _get_session_service()
+            _get_session_service()
 
-        # Should fall back to InMemorySessionService
-        from google.adk.sessions import InMemorySessionService
-
-        assert isinstance(service, InMemorySessionService)
-
-        # Password must not appear in logs
-        assert "8dnL1i3eo4GtqwUpKKhNVA" not in caplog.text
+        # Password must not appear in the raised error
+        assert "8dnL1i3eo4GtqwUpKKhNVA" not in str(exc_info.value)
 
         # But the sanitized URL structure should still be present for debugging
-        assert "://***@" in caplog.text
+        assert "://***@" in str(exc_info.value)
 
-    def test_fallback_to_inmemory_when_no_url(self, caplog):
-        """Test that InMemorySessionService is used when no session URL is set."""
+    def test_memory_backend_used_when_configured(self, caplog):
+        """Test that InMemorySessionService is used when SESSION_BACKEND=memory."""
         mock_settings = MagicMock()
-        mock_settings.session_database_url = ""
+        mock_settings.session_backend = "memory"
 
         with (
             patch(
@@ -417,3 +418,51 @@ class TestGetSessionService:
 
         assert isinstance(service, InMemorySessionService)
         assert "InMemorySessionService" in caplog.text
+
+    def test_memory_backend_ignores_database_url(self, caplog):
+        """Test that SESSION_BACKEND=memory ignores SESSION_DATABASE_URL."""
+        mock_settings = MagicMock()
+        mock_settings.session_backend = "memory"
+        mock_settings.session_database_url = (
+            "postgresql+asyncpg://user:pass@host:5432/sessions"
+        )
+
+        with (
+            patch(
+                "lightspeed_agent.api.a2a.a2a_setup.get_settings",
+                return_value=mock_settings,
+            ),
+            caplog.at_level(logging.INFO),
+        ):
+            service = _get_session_service()
+
+        from google.adk.sessions import InMemorySessionService
+
+        assert isinstance(service, InMemorySessionService)
+        assert "InMemorySessionService" in caplog.text
+
+    def test_database_backend_returns_database_service(self):
+        """Test that SESSION_BACKEND=database returns DatabaseSessionService."""
+        mock_settings = MagicMock()
+        mock_settings.session_backend = "database"
+        mock_settings.session_database_url = (
+            "postgresql+asyncpg://user:pass@host:5432/sessions"
+        )
+
+        mock_db_session = MagicMock()
+
+        with (
+            patch(
+                "lightspeed_agent.api.a2a.a2a_setup.get_settings",
+                return_value=mock_settings,
+            ),
+            patch(
+                "google.adk.sessions.DatabaseSessionService",
+                mock_db_session,
+            ),
+        ):
+            _get_session_service()
+
+        mock_db_session.assert_called_once_with(
+            db_url="postgresql+asyncpg://user:pass@host:5432/sessions"
+        )

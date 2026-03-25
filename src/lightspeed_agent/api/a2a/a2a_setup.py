@@ -52,60 +52,48 @@ def _normalize_db_url(url: str) -> str:
 
 
 def _get_session_service() -> Any:
-    """Get the appropriate session service based on configuration.
+    """Get the appropriate session service based on SESSION_BACKEND setting.
 
-    For production, uses DatabaseSessionService which persists sessions to PostgreSQL.
-    For development, uses InMemorySessionService.
+    Uses SESSION_BACKEND to determine the session storage:
+    - ``"memory"``: InMemorySessionService (default, no persistence)
+    - ``"database"``: DatabaseSessionService (requires SESSION_DATABASE_URL)
+
+    When SESSION_BACKEND is ``"database"``, failures are raised immediately
+    rather than silently falling back to in-memory, so misconfigurations are
+    caught at startup.
 
     Security Note:
-        SESSION_DATABASE_URL must be explicitly set to use database persistence.
-        This prevents accidental use of the marketplace database (DATABASE_URL)
-        for session storage, ensuring:
-        - Agents only have access to session data, not marketplace/auth data
-        - Compromised agents can't access DCR credentials or order information
-        - Different retention policies can be applied to sessions vs. marketplace data
+        SESSION_DATABASE_URL should point to a separate database from
+        DATABASE_URL to ensure agents only access session data, not
+        marketplace/auth data.
 
     Returns:
         Session service instance (DatabaseSessionService or InMemorySessionService).
     """
     settings = get_settings()
 
-    # Only use database session service if SESSION_DATABASE_URL is explicitly set
-    # Do NOT fall back to DATABASE_URL to avoid mixing session and marketplace data
-    session_db_url = settings.session_database_url
+    if settings.session_backend == "database":
+        from google.adk.sessions import DatabaseSessionService
 
-    # Use database session service for production (non-SQLite databases)
-    if session_db_url and not session_db_url.startswith("sqlite"):
+        # SESSION_DATABASE_URL is guaranteed non-empty by the model validator
+        db_url = _normalize_db_url(settings.session_database_url)
+
+        # Log which database is being used (without credentials)
+        parsed = urlparse(db_url)
+        db_host = parsed.hostname or parsed.query or "local"
+        logger.info(
+            "Using DatabaseSessionService for session persistence (host=%s)",
+            db_host,
+        )
+
         try:
-            from google.adk.sessions import DatabaseSessionService
-
-            # ADK's DatabaseSessionService uses async SQLAlchemy
-            # (create_async_engine), so ensure the URL uses an async driver
-            db_url = _normalize_db_url(session_db_url)
-
-            # Log which database is being used (without credentials)
-            parsed = urlparse(db_url)
-            db_host = parsed.hostname or parsed.query or "local"
-            logger.info(
-                "Using DatabaseSessionService for session persistence (host=%s)",
-                db_host,
-            )
             return DatabaseSessionService(db_url=db_url)
-        except ImportError as e:
-            logger.warning(
-                "DatabaseSessionService not available (%s), falling back to InMemorySessionService",
-                e,
-            )
         except Exception as e:
             # Sanitize error message to avoid leaking credentials from URLs
-            sanitized_msg = re.sub(
-                r"://[^@]+@", "://***@", str(e)
-            )
-            logger.warning(
-                "Failed to initialize DatabaseSessionService (%s), "
-                "falling back to InMemorySessionService",
-                sanitized_msg,
-            )
+            sanitized_msg = re.sub(r"://[^@]+@", "://***@", str(e))
+            raise RuntimeError(
+                f"Failed to initialize DatabaseSessionService: {sanitized_msg}"
+            ) from None
 
     logger.info("Using InMemorySessionService for session management")
     return InMemorySessionService()  # type: ignore[no-untyped-call]

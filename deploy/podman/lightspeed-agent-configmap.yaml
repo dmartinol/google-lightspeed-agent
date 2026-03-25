@@ -39,6 +39,11 @@ data:
   AGENT_HOST: "0.0.0.0"
   AGENT_PORT: "8000"
 
+  # Session Configuration
+  # Session backend: "memory" for dev (no persistence), "database" for persistent sessions
+  # To use "database", ensure SESSION_DATABASE_URL is configured in the secret
+  SESSION_BACKEND: "memory"
+
   # Database Configuration
   # DATABASE_URL and passwords are stored in secrets (contain credentials)
   # Marketplace PostgreSQL (in marketplace-handler pod)

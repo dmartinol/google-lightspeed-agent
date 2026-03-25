@@ -122,9 +122,11 @@ spec:
                 secretKeyRef:
                   name: database-url
                   key: latest
-            # Session Database (required for session persistence)
-            # If not set, uses in-memory storage (sessions lost on restart)
-            # For production, always configure this for session persistence
+            # Session backend: "database" for production persistence,
+            # "memory" for in-memory (sessions lost on restart)
+            - name: SESSION_BACKEND
+              value: "database"
+            # Session Database (required when SESSION_BACKEND=database)
             - name: SESSION_DATABASE_URL
               valueFrom:
                 secretKeyRef:

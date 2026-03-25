@@ -100,7 +100,12 @@ AGENT_PORT=8000
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `DATABASE_URL` | `sqlite+aiosqlite:///./lightspeed_agent.db` | Marketplace database connection URL (orders, DCR clients, auth) |
-| `SESSION_DATABASE_URL` | (uses DATABASE_URL) | Session database URL for ADK sessions. Optional - for security isolation. |
+| `SESSION_BACKEND` | `memory` | Session storage backend: `memory` (in-memory, no persistence) or `database` (PostgreSQL, persistent) |
+| `SESSION_DATABASE_URL` | *(empty)* | Session database URL for ADK sessions. Required when `SESSION_BACKEND=database`. |
+
+> **Note:** Setting `SESSION_BACKEND=database` without providing `SESSION_DATABASE_URL`
+> will cause a startup validation error. This is intentional to prevent running
+> production workloads without session persistence.
 
 **SQLite (Development):**
 
@@ -120,11 +125,14 @@ DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/lightspeed_agent
 DATABASE_URL=postgresql+asyncpg://user:password@/lightspeed_agent?host=/cloudsql/project:region:instance
 ```
 
-**Security Isolation (Optional):**
+**Security Isolation (Recommended for Production):**
 
-For production deployments, you can use separate databases for marketplace data and agent sessions:
+For production deployments, use `SESSION_BACKEND=database` with a separate database for agent sessions:
 
 ```bash
+# Explicit database backend for sessions
+SESSION_BACKEND=database
+
 # Shared marketplace database (orders, DCR clients, auth data)
 DATABASE_URL=postgresql+asyncpg://marketplace:pass@db:5432/marketplace
 
@@ -136,6 +144,14 @@ This separation ensures:
 - Agents only access session data, not marketplace/auth data
 - Compromised agents can't access DCR credentials or order information
 - Different retention policies can be applied to sessions vs. marketplace data
+
+**Switching to In-Memory Sessions:**
+
+To disable database session persistence on a running deployment (e.g., for debugging),
+set `SESSION_BACKEND=memory` and redeploy:
+
+- **Cloud Run:** Update the `SESSION_BACKEND` env var to `memory` and redeploy the service.
+- **Podman:** Update `SESSION_BACKEND` in the ConfigMap to `memory` and restart the pod.
 
 ### Dynamic Client Registration (DCR)
 
@@ -361,6 +377,7 @@ LOG_LEVEL=DEBUG
 LOG_FORMAT=text
 AGENT_LOGGING_DETAIL=detailed
 DATABASE_URL=sqlite+aiosqlite:///./dev.db
+SESSION_BACKEND=memory
 ```
 
 ### Staging
@@ -372,6 +389,8 @@ SKIP_JWT_VALIDATION=false
 LOG_LEVEL=INFO
 LOG_FORMAT=json
 DATABASE_URL=postgresql+asyncpg://user:pass@staging-db:5432/insights
+SESSION_BACKEND=database
+SESSION_DATABASE_URL=postgresql+asyncpg://sessions:pass@staging-db:5432/sessions
 ```
 
 ### Production
@@ -382,5 +401,6 @@ DEBUG=false
 SKIP_JWT_VALIDATION=false
 LOG_LEVEL=INFO
 LOG_FORMAT=json
-# DATABASE_URL from Secret Manager
+SESSION_BACKEND=database
+# DATABASE_URL and SESSION_DATABASE_URL from Secret Manager
 ```
