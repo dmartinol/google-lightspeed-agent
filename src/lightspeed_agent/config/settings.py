@@ -233,14 +233,22 @@ class Settings(BaseSettings):
         description="Maximum overflow connections beyond pool size",
     )
 
-    # Session database: stores ADK sessions, conversation history, memory
+    # Session configuration: controls ADK session storage backend
     # Separate from marketplace DB for security isolation - each agent can have its own
+    session_backend: Literal["memory", "database"] = Field(
+        default="memory",
+        description=(
+            "Session storage backend. "
+            "'memory' uses in-memory sessions (lost on restart). "
+            "'database' uses DatabaseSessionService and requires SESSION_DATABASE_URL."
+        ),
+    )
     session_database_url: str = Field(
         default="",
         description=(
             "Session database URL for ADK sessions."
-            " If empty, uses DATABASE_URL."
-            " For security isolation, use a separate database."
+            " Required when SESSION_BACKEND=database."
+            " For security isolation, use a separate database from DATABASE_URL."
         ),
     )
 
@@ -304,6 +312,17 @@ class Settings(BaseSettings):
                 "SKIP_JWT_VALIDATION=true is not allowed in Cloud Run "
                 f"(K_SERVICE={os.getenv('K_SERVICE')}). "
                 "This setting is intended for local development only."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _validate_session_backend(self) -> "Settings":
+        """Ensure SESSION_DATABASE_URL is set when SESSION_BACKEND=database."""
+        if self.session_backend == "database" and not self.session_database_url:
+            raise ValueError(
+                "SESSION_BACKEND=database requires SESSION_DATABASE_URL to be set. "
+                "Provide a PostgreSQL connection URL, e.g.: "
+                "SESSION_DATABASE_URL=postgresql+asyncpg://user:pass@host:5432/sessions"
             )
         return self
 
