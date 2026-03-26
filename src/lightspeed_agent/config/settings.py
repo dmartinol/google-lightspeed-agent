@@ -164,6 +164,12 @@ class Settings(BaseSettings):
         default="json",
         description="Log format",
     )
+    agent_logging_detail: Literal["basic", "detailed"] = Field(
+        default="basic",
+        description="Agent execution logging detail level. "
+        "'basic' logs tool names and token counts. "
+        "'detailed' also logs tool arguments and truncated results.",
+    )
 
     # DCR (Dynamic Client Registration) Configuration
     dcr_enabled: bool = Field(

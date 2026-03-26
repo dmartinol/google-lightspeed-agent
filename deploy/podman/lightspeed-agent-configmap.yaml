@@ -70,6 +70,7 @@ data:
   # Logging
   LOG_LEVEL: "DEBUG"
   LOG_FORMAT: "json"
+  AGENT_LOGGING_DETAIL: "detailed"
 
   # DCR (Dynamic Client Registration) Configuration
   # Set to "true" to enable real DCR with Red Hat SSO (Keycloak)

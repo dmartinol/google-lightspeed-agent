@@ -219,12 +219,14 @@ See [Usage Tracking and Metering](metering.md) for details on the plugin system 
 |----------|---------|-------------|
 | `LOG_LEVEL` | `INFO` | Log level: DEBUG, INFO, WARNING, ERROR |
 | `LOG_FORMAT` | `json` | Log format: `json` or `text` |
+| `AGENT_LOGGING_DETAIL` | `basic` | Agent execution logging detail: `basic` or `detailed` |
 
 **Example:**
 
 ```bash
 LOG_LEVEL=DEBUG
 LOG_FORMAT=text  # Human-readable for development
+AGENT_LOGGING_DETAIL=detailed  # Include tool args/results in logs
 ```
 
 ### Development Settings
@@ -241,6 +243,7 @@ DEBUG=true
 SKIP_JWT_VALIDATION=true
 LOG_LEVEL=DEBUG
 LOG_FORMAT=text
+AGENT_LOGGING_DETAIL=detailed
 ```
 
 **Production:**
@@ -250,6 +253,7 @@ DEBUG=false
 SKIP_JWT_VALIDATION=false
 LOG_LEVEL=INFO
 LOG_FORMAT=json
+AGENT_LOGGING_DETAIL=basic
 ```
 
 ## Configuration Files
@@ -355,6 +359,7 @@ DEBUG=true
 SKIP_JWT_VALIDATION=true
 LOG_LEVEL=DEBUG
 LOG_FORMAT=text
+AGENT_LOGGING_DETAIL=detailed
 DATABASE_URL=sqlite+aiosqlite:///./dev.db
 ```
 

@@ -85,6 +85,8 @@ spec:
               value: "INFO"
             - name: LOG_FORMAT
               value: "json"
+            - name: AGENT_LOGGING_DETAIL
+              value: "basic"
             # Red Hat SSO Configuration
             - name: RED_HAT_SSO_ISSUER
               value: "https://sso.redhat.com/auth/realms/redhat-external"
