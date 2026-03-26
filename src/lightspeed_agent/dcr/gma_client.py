@@ -69,6 +69,10 @@ class GMAClient:
         self._api_base_url = api_base_url or settings.gma_api_base_url
         self._client_id = client_id or settings.gma_client_id
         self._client_secret = client_secret or settings.gma_client_secret
+        if not self._client_id or not self._client_secret:
+            raise ValueError(
+                "GMA_CLIENT_ID and GMA_CLIENT_SECRET must be set when using GMAClient"
+            )
         self._token_endpoint = token_endpoint or settings.keycloak_token_endpoint
         self._client_name_prefix = client_name_prefix or settings.dcr_client_name_prefix
         self._http_client = http_client
@@ -91,13 +95,6 @@ class GMAClient:
         now = time.monotonic()
         if self._access_token and now < self._token_expires_at:
             return self._access_token
-
-        if not self._client_id or not self._client_secret:
-            raise GMAClientError(
-                "GMA API authentication failed: "
-                "GMA_CLIENT_ID and GMA_CLIENT_SECRET environment variables are required",
-                status_code=500,
-            )
 
         logger.info("Requesting GMA access token for client_id=%s", self._client_id)
 

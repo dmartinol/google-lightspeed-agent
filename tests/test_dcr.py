@@ -815,20 +815,17 @@ class TestGMAClient:
         # Only one HTTP call should have been made
         assert mock_http.post.call_count == 1
 
-    @pytest.mark.asyncio
-    async def test_gma_client_get_token_missing_credentials(self):
+    def test_gma_client_get_token_missing_credentials(self):
         """Test error when GMA credentials are not configured."""
-        from lightspeed_agent.dcr.gma_client import GMAClient, GMAClientError
+        from lightspeed_agent.dcr.gma_client import GMAClient
 
-        client = GMAClient(
-            api_base_url="https://sso.example.com/apis/beta/acs/v1/",
-            client_id="",
-            client_secret="",
-            token_endpoint="https://sso.example.com/token",
-        )
-
-        with pytest.raises(GMAClientError, match="GMA_CLIENT_ID"):
-            await client.get_token()
+        with pytest.raises(ValueError, match="GMA_CLIENT_ID"):
+            GMAClient(
+                api_base_url="https://sso.example.com/apis/beta/acs/v1/",
+                client_id="",
+                client_secret="",
+                token_endpoint="https://sso.example.com/token",
+            )
 
     @pytest.mark.asyncio
     async def test_gma_client_create_tenant_success(self):
