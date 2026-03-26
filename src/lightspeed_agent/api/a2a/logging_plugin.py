@@ -50,7 +50,7 @@ class AgentLoggingPlugin(BasePlugin):
         logger.info(
             "Agent run started (invocation_id=%s, agent=%s)",
             invocation_context.invocation_id,
-            invocation_context.agent_name,  # type: ignore[attr-defined]
+            invocation_context.agent.name,
         )
         return None
 

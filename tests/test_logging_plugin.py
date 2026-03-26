@@ -44,7 +44,7 @@ class TestAgentLoggingPluginBasic:
     async def test_before_run_logs_info(self, plugin, caplog):
         ctx = MagicMock()
         ctx.invocation_id = "inv-123"
-        ctx.agent_name = "test_agent"
+        ctx.agent = MagicMock(name="test_agent")
 
         with caplog.at_level(logging.INFO):
             result = await plugin.before_run_callback(invocation_context=ctx)
@@ -270,7 +270,7 @@ class TestAllCallbacksReturnNone:
     async def test_all_callbacks_return_none(self, plugin):
         ctx = MagicMock()
         ctx.invocation_id = "inv-1"
-        ctx.agent_name = "agent"
+        ctx.agent = MagicMock(name="agent")
 
         tool = MagicMock()
         tool.name = "test_tool"
