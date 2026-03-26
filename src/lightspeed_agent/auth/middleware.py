@@ -10,6 +10,7 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.responses import JSONResponse
 
 from lightspeed_agent.auth.introspection import (
+    DisallowedScopeError,
     InsufficientScopeError,
     TokenValidationError,
     get_token_introspector,
@@ -123,6 +124,9 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             _request_access_token.set((token, user.token_exp))
             _request_order_id.set(order_id)
             logger.debug("Authenticated user: %s", user.user_id)
+        except DisallowedScopeError as e:
+            logger.warning("Disallowed scope: %s", e)
+            return self._forbidden_response(str(e))
         except InsufficientScopeError as e:
             logger.warning("Insufficient scope: %s", e)
             return self._forbidden_response(str(e))
