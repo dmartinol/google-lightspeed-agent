@@ -543,9 +543,9 @@ google-cloud-storage==3.9.0 \
     # via
     #   google-adk
     #   google-cloud-aiplatform
-google-cloud-trace==1.18.0 \
-    --hash=sha256:46d42b90273da3bc4850bb0d6b9a205eb826a54561ff1b30ca33cc92174c3f37 \
-    --hash=sha256:52c002d8d3da802e031fee62cd49a1baf899932d4f548a150f685af6815b5554
+google-cloud-trace==1.19.0 \
+    --hash=sha256:58293c6efcee6c74bb854ff01b008823bef66845c14f15ffa5209d545098a65d \
+    --hash=sha256:59604c4c775c40af31b367df6bada0af34518cc35ac8cfedecd43898a120c51d
     # via
     #   google-cloud-aiplatform
     #   opentelemetry-exporter-gcp-trace
