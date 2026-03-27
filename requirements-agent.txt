@@ -505,9 +505,9 @@ google-cloud-logging==3.13.0 \
     # via
     #   google-cloud-aiplatform
     #   opentelemetry-exporter-gcp-logging
-google-cloud-monitoring==2.29.1 \
-    --hash=sha256:86cac55cdd2608561819d19544fb3c129bbb7dcecc445d8de426e34cd6fa8e49 \
-    --hash=sha256:944a57031f20da38617d184d5658c1f938e019e8061f27fd944584831a1b9d5a
+google-cloud-monitoring==2.30.0 \
+    --hash=sha256:2729f3b88a4798b7757b1d9d31b6cb562bb3544e8173765e4e5cd44d8685b1ed \
+    --hash=sha256:a9530aa9aa246c490810dfa7be32d67e8340d19108acc99cbc02d1ed494fba76
     # via
     #   google-cloud-spanner
     #   opentelemetry-exporter-gcp-monitoring
