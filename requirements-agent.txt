@@ -515,9 +515,9 @@ google-cloud-pubsub==2.35.0 \
     --hash=sha256:2c0d1d7ccda52fa12fb73f34b7eb9899381e2fd931c7d47b10f724cdfac06f95 \
     --hash=sha256:c32e4eb29e532ec784b5abb5d674807715ec07895b7c022b9404871dec09970d
     # via google-adk
-google-cloud-resource-manager==1.16.0 \
-    --hash=sha256:cc938f87cc36c2672f062b1e541650629e0d954c405a4dac35ceedee70c267c3 \
-    --hash=sha256:fb9a2ad2b5053c508e1c407ac31abfd1a22e91c32876c1892830724195819a28
+google-cloud-resource-manager==1.17.0 \
+    --hash=sha256:0f486b62e2c58ff992a3a50fa0f4a96eef7750aa6c971bb373398ccb91828660 \
+    --hash=sha256:e479baf4b014a57f298e01b8279e3290b032e3476d69c8e5e1427af8f82739a5
     # via google-cloud-aiplatform
 google-cloud-secret-manager==2.26.0 \
     --hash=sha256:0d1d6f76327685a0ed78a4cf50f289e1bfbbe56026ed0affa98663b86d6d50d6 \
