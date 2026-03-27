@@ -499,9 +499,9 @@ google-cloud-iam==2.21.0 \
     --hash=sha256:1b4a21302b186a31f3a516ccff303779638308b7c801fb61a2406b6a0c6293c4 \
     --hash=sha256:fc560527e22b97c6cbfba0797d867cf956c727ba687b586b9aa44d78e92281a3
     # via google-cloud-aiplatform
-google-cloud-logging==3.13.0 \
-    --hash=sha256:3aae0573b1a1a4f59ecdf4571f4e7881b5823bd129fe469561c1c49a7fa8a4c1 \
-    --hash=sha256:f215e1c76ee29239c6cacf02443dffa985663c74bf47c9818854694805c6019f
+google-cloud-logging==3.15.0 \
+    --hash=sha256:72168a1e98bbfc27c75f0b8f630a7f5d786065f3f1f7e9e53d2d787a03693a4a \
+    --hash=sha256:7dcc67434c4e7181510c133d5ac8fd4ce60c23fa4158661f67e54bf440c32450
     # via
     #   google-cloud-aiplatform
     #   opentelemetry-exporter-gcp-logging
