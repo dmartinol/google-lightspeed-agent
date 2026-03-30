@@ -85,7 +85,12 @@ class Settings(BaseSettings):
         description="Agent name (must be a valid Python identifier)",
     )
     agent_description: str = Field(
-        default="Red Hat Lightspeed Agent for Google Cloud",
+        default=(
+            "Red Hat Lightspeed Agent for Google Cloud. "
+            "This agent uses AI technology to provide information about "
+            "Red Hat accounts, subscriptions, and system configurations. "
+            "Always review AI-generated content prior to use."
+        ),
         description="Agent description",
     )
     agent_host: str = Field(

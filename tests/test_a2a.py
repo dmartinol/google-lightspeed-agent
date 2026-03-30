@@ -54,13 +54,46 @@ class TestAgentCard:
         """Test AgentCard has DCR extension in capabilities."""
         card = build_agent_card()
 
-        # Extensions are now a list of AgentExtension objects
         assert card.capabilities.extensions is not None
-        assert len(card.capabilities.extensions) > 0
-        dcr_ext = card.capabilities.extensions[0]
-        assert "dcr" in dcr_ext.uri
+        dcr_exts = [ext for ext in card.capabilities.extensions if "dcr" in ext.uri]
+        assert len(dcr_exts) == 1
+        dcr_ext = dcr_exts[0]
         assert dcr_ext.params is not None
         assert "target_url" in dcr_ext.params
+
+    def test_agent_card_has_access_mode_extension(self):
+        """Test AgentCard has access mode extension with read-only metadata."""
+        card = build_agent_card()
+
+        assert card.capabilities.extensions is not None
+        exts = [ext for ext in card.capabilities.extensions if "access-mode" in ext.uri]
+        assert len(exts) == 1
+        ext = exts[0]
+        assert ext.uri == "urn:redhat:lightspeed:access-mode"
+        assert ext.params is not None
+        assert ext.params["read_only"] is True
+        scopes = ext.params["oauth2_scopes"]
+        assert "api.console" in scopes
+        assert "api.ocm" in scopes
+
+    def test_agent_card_has_rate_limit_extension(self):
+        """Test AgentCard has rate limiting extension."""
+        card = build_agent_card()
+
+        assert card.capabilities.extensions is not None
+        exts = [ext for ext in card.capabilities.extensions if "rate-limiting" in ext.uri]
+        assert len(exts) == 1
+        ext = exts[0]
+        assert ext.uri == "urn:redhat:lightspeed:rate-limiting"
+        assert ext.params is not None
+        assert ext.params["requests_per_minute"] == 60
+        assert ext.params["requests_per_hour"] == 1000
+
+    def test_agent_card_description_has_disclaimer(self):
+        """Test AgentCard description includes accuracy disclaimer."""
+        card = build_agent_card()
+
+        assert "Always review AI-generated content prior to use" in card.description
 
     def test_agent_card_url_points_to_root(self):
         """Test AgentCard URL points to root endpoint."""
