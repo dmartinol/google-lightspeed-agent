@@ -277,6 +277,39 @@ class TestDCRService:
         assert client.account_id == "valid-account-123"
 
 
+class TestDCRServiceEncryptionValidation:
+    """Tests for DCR service encryption key validation."""
+
+    def test_dcr_service_missing_key_on_cloud_run(self, monkeypatch, db_session):
+        """Test DCRService raises ValueError when DCR_ENCRYPTION_KEY is missing on Cloud Run."""
+        from lightspeed_agent.config import get_settings
+
+        settings = get_settings()
+        monkeypatch.setenv("K_SERVICE", "test-marketplace-handler")
+        monkeypatch.setattr(settings, "dcr_encryption_key", "")
+
+        with pytest.raises(ValueError, match="DCR_ENCRYPTION_KEY is required in production"):
+            DCRService()
+
+    def test_dcr_service_invalid_encryption_key(self, monkeypatch, db_session):
+        """Test that DCRService raises ValueError for invalid DCR_ENCRYPTION_KEY."""
+        from lightspeed_agent.config import get_settings
+
+        settings = get_settings()
+        monkeypatch.setattr(settings, "dcr_encryption_key", "not-a-valid-fernet-key")
+
+        with pytest.raises(ValueError, match="Invalid DCR_ENCRYPTION_KEY"):
+            DCRService()
+
+    def test_encrypt_secret_without_key_raises(self, db_session):
+        """Test that _encrypt_secret raises RuntimeError when _fernet is None."""
+        service = DCRService()
+        service._fernet = None
+
+        with pytest.raises(RuntimeError, match="Cannot encrypt client secret"):
+            service._encrypt_secret("test-secret")
+
+
 class TestDCRServiceDelete:
     """Tests for DCR service client deletion."""
 
