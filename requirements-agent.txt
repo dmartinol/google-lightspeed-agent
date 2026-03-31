@@ -464,9 +464,9 @@ google-cloud-appengine-logging==1.8.0 \
     --hash=sha256:84b705a69e4109fc2f68dfe36ce3df6a34d5c3d989eee6d0ac1b024dda0ba6f5 \
     --hash=sha256:a4ce9ce94a9fd8c89ed07fa0b06fcf9ea3642f9532a1be1a8c7b5f82c0a70ec6
     # via google-cloud-logging
-google-cloud-audit-log==0.4.0 \
-    --hash=sha256:6b88e2349df45f8f4cc0993b687109b1388da1571c502dc1417efa4b66ec55e0 \
-    --hash=sha256:8467d4dcca9f3e6160520c24d71592e49e874838f174762272ec10e7950b6feb
+google-cloud-audit-log==0.5.0 \
+    --hash=sha256:3b32d5e77db634c46fbd6c5e01f5bda836f420dfbb21d730501c75e9fab4e4a4 \
+    --hash=sha256:3f4632f25bf67446fa9085c52868f3cb42fb1afbab9489ba8978e30991afc79f
     # via google-cloud-logging
 google-cloud-bigquery==3.40.1 \
     --hash=sha256:75afcfb6e007238fe1deefb2182105249321145ff921784fe7b1de2b4ba24506 \
