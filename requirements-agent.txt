@@ -495,9 +495,9 @@ google-cloud-discoveryengine==0.13.12 \
     --hash=sha256:295f8c6df3fb26b90fb82c2cd6fbcf4b477661addcb19a94eea16463a5c4e041 \
     --hash=sha256:d6b9f8fadd8ad0d2f4438231c5eb7772a317e9f59cafbcbadc19b5d54c609419
     # via google-adk
-google-cloud-iam==2.21.0 \
-    --hash=sha256:1b4a21302b186a31f3a516ccff303779638308b7c801fb61a2406b6a0c6293c4 \
-    --hash=sha256:fc560527e22b97c6cbfba0797d867cf956c727ba687b586b9aa44d78e92281a3
+google-cloud-iam==2.22.0 \
+    --hash=sha256:203ddfece17e014ee4fbc5c3244daa14a88b7ee57c8e3a7622d0f2a1a3b8d7f3 \
+    --hash=sha256:c443b34b5a6a9e51d32cee397879bb781b900af68937c67a275def23bbc025f3
     # via google-cloud-aiplatform
 google-cloud-logging==3.13.0 \
     --hash=sha256:3aae0573b1a1a4f59ecdf4571f4e7881b5823bd129fe469561c1c49a7fa8a4c1 \
