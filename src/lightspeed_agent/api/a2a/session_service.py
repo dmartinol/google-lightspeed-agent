@@ -52,11 +52,10 @@ class RetryingDatabaseSessionService(DatabaseSessionService):  # type: ignore[mi
 
                 last_error = exc
                 logger.warning(
-                    "Stale session detected (attempt %d/%d, session=%s), "
+                    "Stale session detected (attempt %d/%d), "
                     "refreshing timestamp and retrying",
                     attempt,
                     self._max_retries,
-                    session.id,
                 )
 
                 reloaded = await self.get_session(
@@ -66,6 +65,14 @@ class RetryingDatabaseSessionService(DatabaseSessionService):  # type: ignore[mi
                 )
                 if reloaded:
                     session.last_update_time = reloaded.last_update_time
+                else:
+                    logger.warning(
+                        "Session not found during reload (attempt %d/%d), "
+                        "cannot retry",
+                        attempt,
+                        self._max_retries,
+                    )
+                    break
 
         # All retries exhausted — raise the last stale-session error.
         raise last_error  # type: ignore[misc]

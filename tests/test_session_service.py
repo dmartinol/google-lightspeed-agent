@@ -160,28 +160,30 @@ class TestRetryingAppendEvent:
         assert mock_append.await_count == 3
         assert mock_get.await_count == 3
 
-    async def test_get_session_returns_none_still_retries(self, service):
-        """If get_session returns None (session deleted), retry still proceeds."""
+    async def test_get_session_returns_none_breaks_loop(self, service):
+        """If get_session returns None (session deleted), stop retrying and raise."""
         session = _make_session(last_update_time=100.0)
         event = _make_event()
-        expected = MagicMock()
 
         with (
             patch(
                 "google.adk.sessions.DatabaseSessionService.append_event",
                 new_callable=AsyncMock,
-                side_effect=[ValueError("stale session"), expected],
-            ),
+                side_effect=ValueError("stale session"),
+            ) as mock_append,
             patch.object(
                 service,
                 "get_session",
                 new_callable=AsyncMock,
                 return_value=None,
-            ),
+            ) as mock_get,
+            pytest.raises(ValueError, match="stale session"),
         ):
-            result = await service.append_event(session, event)
+            await service.append_event(session, event)
 
-        assert result is expected
+        # Only one attempt — loop breaks after get_session returns None
+        mock_append.assert_awaited_once()
+        mock_get.assert_awaited_once()
         # last_update_time unchanged because reloaded was None
         assert session.last_update_time == 100.0
 
