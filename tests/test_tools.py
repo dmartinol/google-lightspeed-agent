@@ -116,21 +116,18 @@ class TestSkills:
 
         assert read_only_ids.issubset(all_ids)
 
-    def test_get_skills_for_agent_card_read_only(self):
-        """Test getting read-only skills for agent card."""
-        skills = get_skills_for_agent_card(read_only=True)
+    def test_get_skills_for_agent_card_returns_read_only(self):
+        """Test getting skills for agent card returns only read-only skills."""
+        skills = get_skills_for_agent_card()
 
         assert len(skills) == len(READ_ONLY_SKILLS)
+        skill_ids = {s["id"] for s in skills}
+        read_only_ids = {s.id for s in READ_ONLY_SKILLS}
+        assert skill_ids == read_only_ids
         for skill in skills:
             assert "id" in skill
             assert "name" in skill
             assert "description" in skill
-
-    def test_get_skills_for_agent_card_all(self):
-        """Test getting all skills for agent card."""
-        skills = get_skills_for_agent_card(read_only=False)
-
-        assert len(skills) == len(ALL_SKILLS)
 
 
 class TestToolLists:

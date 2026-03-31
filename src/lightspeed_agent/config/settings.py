@@ -84,8 +84,19 @@ class Settings(BaseSettings):
         default="lightspeed_agent",
         description="Agent name (must be a valid Python identifier)",
     )
-    agent_description: str = Field(
+    agent_display_name: str = Field(
         default="Red Hat Lightspeed Agent for Google Cloud",
+        description="Human-readable agent name for the AgentCard",
+    )
+    agent_description: str = Field(
+        default=(
+            "Red Hat Lightspeed Agent for Google Cloud is an A2A-ready Agent "
+            "that leverages Red Hat Lightspeed Model Context Protocol (MCP) to "
+            "connect to Red Hat Lightspeed services, providing information about "
+            "your Red Hat account, subscription, system configuration, and "
+            "related details. This feature uses AI technology. Always review "
+            "AI-generated content prior to use."
+        ),
         description="Agent description",
     )
     agent_host: str = Field(
