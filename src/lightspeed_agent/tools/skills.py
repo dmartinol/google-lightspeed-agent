@@ -204,5 +204,5 @@ def get_skills_for_agent_card(read_only: bool = True) -> list[dict[str, Any]]:
     Returns:
         List of skill dictionaries.
     """
-    skills = READ_ONLY_SKILLS if read_only else ALL_SKILLS
-    return [skill.to_dict() for skill in skills]
+    # Hardcoded to read-only skills for now
+    return [skill.to_dict() for skill in READ_ONLY_SKILLS]

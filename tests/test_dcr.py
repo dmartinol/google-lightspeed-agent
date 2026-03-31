@@ -735,11 +735,10 @@ class TestAgentCardDCRExtension:
 
         card = build_agent_card()
 
-        # Extensions are now a list of AgentExtension objects
         assert card.capabilities.extensions is not None
-        assert len(card.capabilities.extensions) > 0
-        dcr_ext = card.capabilities.extensions[0]
-        assert "dcr" in dcr_ext.uri
+        dcr_exts = [ext for ext in card.capabilities.extensions if "dcr" in ext.uri]
+        assert len(dcr_exts) == 1
+        dcr_ext = dcr_exts[0]
         assert dcr_ext.params is not None
         assert "target_url" in dcr_ext.params
         assert "/dcr" in dcr_ext.params["target_url"]
