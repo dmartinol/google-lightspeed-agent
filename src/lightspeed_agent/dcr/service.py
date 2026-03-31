@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from typing import TYPE_CHECKING
 
 import httpx
@@ -73,13 +74,28 @@ class DCRService:
         self._client_repository = client_repository or get_dcr_client_repository()
         self._settings = get_settings()
 
-        # Fernet cipher for encrypting client secrets
+        # Fernet cipher for encrypting client secrets.
+        # In production (Cloud Run), DCR_ENCRYPTION_KEY is required to prevent
+        # silent data loss from missing encryption configuration.
         self._fernet: Fernet | None = None
         if self._settings.dcr_encryption_key:
             try:
                 self._fernet = Fernet(self._settings.dcr_encryption_key.encode())
             except Exception as e:
-                logger.error("Invalid DCR encryption key: %s", e)
+                raise ValueError(
+                    f"Invalid DCR_ENCRYPTION_KEY: {e}. "
+                    "Generate a valid key with: "
+                    "python -c 'from cryptography.fernet import Fernet; "
+                    "print(Fernet.generate_key().decode())'"
+                ) from e
+        elif os.getenv("K_SERVICE"):
+            raise ValueError(
+                "DCR_ENCRYPTION_KEY is required in production "
+                f"(K_SERVICE={os.getenv('K_SERVICE')}). "
+                "Client secrets cannot be stored without an encryption key. "
+                "Generate a key with: python -c 'from cryptography.fernet import Fernet; "
+                "print(Fernet.generate_key().decode())'"
+            )
 
     def _get_gma_client(self) -> GMAClient:
         """Get the GMA client (lazy initialization)."""
@@ -95,10 +111,15 @@ class DCRService:
 
         Returns:
             Encrypted secret as base64 string.
+
+        Raises:
+            RuntimeError: If DCR_ENCRYPTION_KEY is not configured.
         """
         if not self._fernet:
-            logger.warning("DCR_ENCRYPTION_KEY not set, using ephemeral key")
-            self._fernet = Fernet(Fernet.generate_key())
+            raise RuntimeError(
+                "Cannot encrypt client secret: DCR_ENCRYPTION_KEY is not configured. "
+                "Set DCR_ENCRYPTION_KEY to a valid Fernet key before performing DCR operations."
+            )
         return self._fernet.encrypt(secret.encode()).decode()
 
     def _decrypt_secret(self, encrypted_secret: str) -> str | None:

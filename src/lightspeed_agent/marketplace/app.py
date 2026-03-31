@@ -37,6 +37,19 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.error("Failed to initialize database: %s", e)
         raise
 
+    # Startup: Validate DCR configuration (fail-fast on Cloud Run)
+    # This ensures DCR_ENCRYPTION_KEY is valid BEFORE the service becomes ready,
+    # preventing silent failures when the first DCR request arrives.
+    try:
+        from lightspeed_agent.dcr import get_dcr_service
+
+        logger.info("Validating DCR service configuration")
+        get_dcr_service()  # Triggers DCRService.__init__() validation
+        logger.info("DCR service initialized successfully")
+    except Exception as e:
+        logger.error("Failed to initialize DCR service: %s", e)
+        raise
+
     yield
 
     # Shutdown: Close database connection
