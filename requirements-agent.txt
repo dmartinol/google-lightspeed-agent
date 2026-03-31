@@ -491,9 +491,9 @@ google-cloud-core==2.5.0 \
     #   google-cloud-logging
     #   google-cloud-spanner
     #   google-cloud-storage
-google-cloud-discoveryengine==0.13.12 \
-    --hash=sha256:295f8c6df3fb26b90fb82c2cd6fbcf4b477661addcb19a94eea16463a5c4e041 \
-    --hash=sha256:d6b9f8fadd8ad0d2f4438231c5eb7772a317e9f59cafbcbadc19b5d54c609419
+google-cloud-discoveryengine==0.18.0 \
+    --hash=sha256:632585a880ba316382d9e795269689c65412e466135d07ceb097a619bf26230e \
+    --hash=sha256:fcd3dd1292c46b08c51fff70ea5278d2b0383ad096bc5a4e04b502e0e00dc257
     # via google-adk
 google-cloud-iam==2.21.0 \
     --hash=sha256:1b4a21302b186a31f3a516ccff303779638308b7c801fb61a2406b6a0c6293c4 \
