@@ -133,7 +133,7 @@ spec:
             # Session backend: "database" for production persistence,
             # "memory" for in-memory (sessions lost on restart)
             - name: SESSION_BACKEND
-              value: "database"
+              value: "memory"
             # Session Database (required when SESSION_BACKEND=database)
             - name: SESSION_DATABASE_URL
               valueFrom:
