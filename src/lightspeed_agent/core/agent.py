@@ -5,9 +5,11 @@ import os
 from typing import Any
 
 from google.adk.agents import LlmAgent
+from google.adk.models import Gemini
 from google.adk.planners import PlanReActPlanner
 
 from lightspeed_agent.config import get_settings
+from lightspeed_agent.core.gemini_retry import http_retry_options_from_settings
 
 logger = logging.getLogger(__name__)
 
@@ -218,6 +220,21 @@ def create_agent() -> LlmAgent:
     _setup_environment()
     settings = get_settings()
 
+    retry_opts = http_retry_options_from_settings(settings)
+    gemini_model = Gemini(
+        model=settings.gemini_model,
+        retry_options=retry_opts,
+    )
+    logger.info(
+        "Gemini HTTP retry: attempts=%s initial_delay=%ss max_delay=%ss "
+        "exp_base=%s jitter=%s",
+        settings.gemini_http_retry_attempts,
+        settings.gemini_http_retry_initial_delay,
+        settings.gemini_http_retry_max_delay,
+        settings.gemini_http_retry_exp_base,
+        settings.gemini_http_retry_jitter,
+    )
+
     tools: list[Any] = []
 
     try:
@@ -242,7 +259,7 @@ def create_agent() -> LlmAgent:
 
     return LlmAgent(
         name=settings.agent_name,
-        model=settings.gemini_model,
+        model=gemini_model,
         description=settings.agent_description,
         instruction=AGENT_INSTRUCTION,
         tools=tools,

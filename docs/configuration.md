@@ -15,6 +15,13 @@ Configuration is managed through environment variables. Copy `.env.example` to `
 | `GOOGLE_CLOUD_PROJECT` | - | GCP project ID (required for Vertex AI) |
 | `GOOGLE_CLOUD_LOCATION` | `us-central1` | GCP region for Vertex AI |
 | `GEMINI_MODEL` | `gemini-2.5-flash` | Gemini model to use |
+| `GEMINI_HTTP_RETRY_ATTEMPTS` | `5` | Max HTTP attempts per model call (including the first). Use `1` to disable SDK retries. Aligns with [google-genai defaults](https://cloud.google.com/vertex-ai/generative-ai/docs/retry-strategy). |
+| `GEMINI_HTTP_RETRY_INITIAL_DELAY` | `1.0` | Initial backoff delay in seconds (exponential backoff with jitter). |
+| `GEMINI_HTTP_RETRY_MAX_DELAY` | `60.0` | Maximum delay in seconds between retries. |
+| `GEMINI_HTTP_RETRY_EXP_BASE` | `2.0` | Backoff multiplier between attempts. |
+| `GEMINI_HTTP_RETRY_JITTER` | `1.0` | Jitter factor to reduce synchronized retries across clients. |
+
+HTTP retries use **exponential backoff with jitter** via the Google Gen AI SDK for transient errors (for example HTTP 429, 408, and 5xx). Retries help with short spikes; they do **not** replace raising [Vertex AI quotas](https://cloud.google.com/vertex-ai/generative-ai/docs/quotas) or fixing sustained overload. See the [Vertex AI retry strategy](https://cloud.google.com/vertex-ai/generative-ai/docs/retry-strategy) documentation.
 
 **Using Google AI Studio:**
 
