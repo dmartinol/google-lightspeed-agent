@@ -86,6 +86,7 @@ MCP_READ_ONLY=true
 | `AGENT_DESCRIPTION` | Red Hat Lightspeed Agent for Google Cloud | Agent description |
 | `AGENT_HOST` | `0.0.0.0` | Server bind address |
 | `AGENT_PORT` | `8000` | Server port |
+| `GUARDRAIL_ORG_ARGS_ENABLED` | `true` | Turns on [tool org guardrails](api.md#tool-guardrails-organization-arguments). Set `false` only for emergency debugging. Wired in the same deploy surfaces as `AGENT_HOST` / `AGENT_PORT` ([`Containerfile`](../Containerfile), [`deploy/cloudrun/service.yaml`](../deploy/cloudrun/service.yaml), [`deploy/podman/lightspeed-agent-configmap.yaml`](../deploy/podman/lightspeed-agent-configmap.yaml), [`cloudbuild.yaml`](../cloudbuild.yaml)). |
 
 **Example:**
 
@@ -94,6 +95,7 @@ AGENT_PROVIDER_URL=https://lightspeed-agent.example.com
 AGENT_NAME=lightspeed_agent
 AGENT_HOST=0.0.0.0
 AGENT_PORT=8000
+GUARDRAIL_ORG_ARGS_ENABLED=true
 ```
 
 ### Database

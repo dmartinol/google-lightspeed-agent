@@ -227,6 +227,19 @@ echo $MCP_SERVER_URL
 | `Connection refused` | MCP server not running | Start MCP server |
 | `Timeout` | Network/server issues | Increase timeout |
 
+### Tool blocked: organization mismatch (`guardrail_org_mismatch`)
+
+**Symptom**: Tool result / logs show `blocked`, `code: guardrail_org_mismatch`, or messages like “organization parameter does not match the authenticated caller”.
+
+**Cause**: The model supplied an `org_id` (or related field) in tool arguments that disagrees with the Red Hat SSO `org_id` on the HTTP request, or arguments include org fields while the request has no org context.
+
+**What to do**:
+
+1. Confirm the client’s Bearer token includes the expected `org_id` (introspection / JWT claims).
+2. Ensure prompts do not ask the model to query another organization’s id.
+3. If MCP tools use different parameter names that falsely trigger the guardrail, extend the allowlist logic in code — do not disable in production without review.
+4. **Temporary** local bypass (not for production): `GUARDRAIL_ORG_ARGS_ENABLED=false` (see [API — Tool guardrails](api.md#tool-guardrails-organization-arguments) and [Configuration — Agent Configuration](configuration.md#agent-configuration)).
+
 ## Database Issues
 
 ### Connection Failures
@@ -444,7 +457,7 @@ Before reporting an issue, collect:
 
 2. **Configuration** (redact secrets):
    ```bash
-   env | grep -E '^(AGENT|GOOGLE|RED_HAT|MCP|LOG)' | sed 's/=.*/=REDACTED/'
+   env | grep -E '^(AGENT|GOOGLE|RED_HAT|MCP|LOG|GUARDRAIL)' | sed 's/=.*/=REDACTED/'
    ```
 
 3. **Version Info**:

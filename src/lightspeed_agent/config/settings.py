@@ -181,6 +181,13 @@ class Settings(BaseSettings):
         "'basic' logs tool names and token counts. "
         "'detailed' also logs tool arguments and truncated results.",
     )
+    guardrail_org_args_enabled: bool = Field(
+        default=True,
+        description=(
+            "When true, block MCP tool calls whose arguments include org-related "
+            "fields that do not match the authenticated request org_id."
+        ),
+    )
 
     # DCR (Dynamic Client Registration) Configuration
     dcr_enabled: bool = Field(

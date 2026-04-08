@@ -172,6 +172,7 @@ All configuration is via environment variables, managed through Pydantic setting
 
 **Agent:**
 - `AGENT_HOST`, `AGENT_PORT`
+- `GUARDRAIL_ORG_ARGS_ENABLED` (default: true — bind MCP tool `org_id`-style args to JWT `org_id`)
 
 **Service Control:**
 - `SERVICE_CONTROL_SERVICE_NAME`, `SERVICE_CONTROL_ENABLED`

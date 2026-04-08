@@ -39,6 +39,8 @@ data:
   AGENT_DESCRIPTION: "Red Hat Lightspeed Agent for Google Cloud"
   AGENT_HOST: "0.0.0.0"
   AGENT_PORT: "8000"
+  # Reject tool calls when org_id / organization_id / rh_org_id in args ≠ JWT org_id
+  GUARDRAIL_ORG_ARGS_ENABLED: "true"
 
   # Session Configuration
   # Session backend: "memory" for dev (no persistence), "database" for persistent sessions

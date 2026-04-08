@@ -91,6 +91,10 @@ spec:
               value: "json"
             - name: AGENT_LOGGING_DETAIL
               value: "basic"
+            # When true, block MCP tool calls if org-related args (e.g. org_id) do not
+            # match the authenticated request org_id. Set false only for emergency debug.
+            - name: GUARDRAIL_ORG_ARGS_ENABLED
+              value: "true"
             # Red Hat SSO Configuration
             - name: RED_HAT_SSO_ISSUER
               value: "https://sso.redhat.com/auth/realms/redhat-external"

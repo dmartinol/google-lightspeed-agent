@@ -331,6 +331,14 @@ See [Authentication](authentication.md) for details on obtaining tokens.
 > Authentication enforcement on the A2A JSON-RPC endpoint should be implemented via
 > middleware or request dependencies depending on deployment requirements.
 
+### Tool guardrails (organization arguments)
+
+The ADK `GuardrailPlugin` (enabled by default via `GUARDRAIL_ORG_ARGS_ENABLED`) runs on every MCP tool call. It only inspects arguments that use organization-style parameter names (e.g. `org_id`, `organization_id`, `rh_org_id`, matched case-insensitively with hyphen/underscore normalization). **If a call has no such parameters, the guardrail does nothing.** If it does, every extracted value must equal the authenticated request’s `org_id` from Red Hat SSO. **If the request has no `org_id` in context but the tool args include those fields, the call is blocked** (same error code). Otherwise the tool is short-circuited with a structured error (`code: guardrail_org_mismatch`) and is not sent to the MCP server. In development with `SKIP_JWT_VALIDATION` and a `Bearer` header, middleware typically sets `org_id` to `dev-org`, so the “missing org context” path is uncommon.
+
+This complements MCP/API-side enforcement and mitigates cross-tenant argument injection from the model.
+
+For the environment variable, defaults, and where it is set in images and deploy manifests, see [Configuration — Agent Configuration](configuration.md#agent-configuration).
+
 ## A2A Protocol Endpoints
 
 The agent implements the [A2A (Agent-to-Agent) protocol](https://google.github.io/A2A/) for interoperability with other agents.

@@ -22,6 +22,7 @@ from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 
 from lightspeed_agent.api.a2a.agent_card import build_agent_card
+from lightspeed_agent.api.a2a.guardrail_plugin import GuardrailPlugin
 from lightspeed_agent.api.a2a.logging_plugin import AgentLoggingPlugin
 from lightspeed_agent.api.a2a.usage_plugin import UsageTrackingPlugin
 from lightspeed_agent.config import get_settings
@@ -113,11 +114,15 @@ def _create_runner() -> Runner:
     settings = get_settings()
     agent = create_agent()
 
-    # Create App with usage tracking plugin
+    # Create App with guardrails (before_tool first), logging, and usage tracking
     app = App(
         name=settings.agent_name,
         root_agent=agent,
-        plugins=[AgentLoggingPlugin(), UsageTrackingPlugin()],
+        plugins=[
+            GuardrailPlugin(),
+            AgentLoggingPlugin(),
+            UsageTrackingPlugin(),
+        ],
     )
 
     # Use database-backed session service for production

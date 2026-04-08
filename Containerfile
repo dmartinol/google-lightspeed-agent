@@ -46,7 +46,8 @@ RUN mkdir -p /opt/app-root/src/data
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     AGENT_HOST=0.0.0.0 \
-    AGENT_PORT=8000
+    AGENT_PORT=8000 \
+    GUARDRAIL_ORG_ARGS_ENABLED=true
 
 # Expose the agent port
 EXPOSE 8000

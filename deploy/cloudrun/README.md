@@ -670,6 +670,7 @@ Bearer token that is active and carries the `api.console` and `api.ocm` scopes.
 | `AGENT_PROVIDER_ORGANIZATION_URL` | Provider's organization website URL (default: `https://www.redhat.com`). Used in AgentCard `provider.url` and as the expected JWT audience for Google DCR `software_statement` validation. Set in YAML configs, not changed by `deploy.sh`. |
 | `AGENT_REQUIRED_SCOPE` | Comma-separated OAuth scopes required in tokens (default: `api.console,api.ocm`) |
 | `AGENT_ALLOWED_SCOPES` | Comma-separated allowlist of permitted scopes (default: `openid,profile,email,api.console,api.ocm`). Tokens with scopes outside this list are rejected (403). |
+| `GUARDRAIL_ORG_ARGS_ENABLED` | When `true` (default), MCP tool arguments that include org-related fields must match the JWT `org_id`. Set in [`service.yaml`](service.yaml). Behavior: [API docs — Tool guardrails](../docs/api.md#tool-guardrails-organization-arguments); env table: [Configuration](../docs/configuration.md#agent-configuration). |
 
 ### Development Mode
 
