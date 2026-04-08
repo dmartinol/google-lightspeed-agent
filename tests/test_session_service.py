@@ -7,18 +7,27 @@ import pytest
 from lightspeed_agent.api.a2a.session_service import (
     RetryingDatabaseSessionService,
     _is_stale_session_error,
+    _sync_session_from_reloaded,
 )
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _make_session(last_update_time: float = 100.0) -> MagicMock:
+def _make_session(
+    last_update_time: float = 100.0,
+    marker: str | None = "2026-04-08T09:04:28.000000",
+    events: list | None = None,
+    state: dict | None = None,
+) -> MagicMock:
     session = MagicMock()
     session.id = "sess-1"
     session.app_name = "test-app"
     session.user_id = "user-1"
     session.last_update_time = last_update_time
+    session._storage_update_marker = marker
+    session.events = events if events is not None else []
+    session.state = state if state is not None else {}
     return session
 
 
@@ -43,6 +52,47 @@ class TestIsStaleSessionError:
 
     def test_rejects_unrelated_value_error(self):
         assert not _is_stale_session_error(ValueError("Some other error"))
+
+
+# ---------------------------------------------------------------------------
+# _sync_session_from_reloaded
+# ---------------------------------------------------------------------------
+
+class TestSyncSessionFromReloaded:
+    def test_copies_all_concurrency_fields(self):
+        """Verify that marker, timestamp, events, and state are all copied."""
+        session = _make_session(
+            last_update_time=100.0,
+            marker="old-marker",
+            events=["old-event"],
+            state={"key": "old"},
+        )
+        reloaded = _make_session(
+            last_update_time=200.0,
+            marker="new-marker",
+            events=["new-event-1", "new-event-2"],
+            state={"key": "new"},
+        )
+        _sync_session_from_reloaded(session, reloaded)
+
+        assert session.last_update_time == 200.0
+        assert session._storage_update_marker == "new-marker"
+        assert session.events == ["new-event-1", "new-event-2"]
+        assert session.state == {"key": "new"}
+
+    def test_handles_missing_marker_attribute(self):
+        """Older ADK versions without _storage_update_marker should not crash."""
+        session = _make_session(last_update_time=100.0)
+        reloaded = MagicMock()
+        reloaded.last_update_time = 200.0
+        reloaded.events = []
+        reloaded.state = {}
+        # Simulate older ADK without the private attr
+        del reloaded._storage_update_marker
+
+        _sync_session_from_reloaded(session, reloaded)
+
+        assert session.last_update_time == 200.0
 
 
 # ---------------------------------------------------------------------------
@@ -84,11 +134,11 @@ class TestRetryingAppendEvent:
 
     async def test_retries_on_stale_error_then_succeeds(self, service):
         """Stale error on first attempt, succeeds on second after refresh."""
-        session = _make_session(last_update_time=100.0)
+        session = _make_session(last_update_time=100.0, marker="old-marker")
         event = _make_event()
         expected = MagicMock()
 
-        reloaded_session = _make_session(last_update_time=200.0)
+        reloaded_session = _make_session(last_update_time=200.0, marker="new-marker")
 
         with (
             patch(
@@ -111,6 +161,7 @@ class TestRetryingAppendEvent:
             app_name="test-app", user_id="user-1", session_id="sess-1"
         )
         assert session.last_update_time == 200.0
+        assert session._storage_update_marker == "new-marker"
 
     async def test_non_stale_value_error_propagates_immediately(self, service):
         """ValueError without stale keywords raises immediately, no retry."""
@@ -138,7 +189,7 @@ class TestRetryingAppendEvent:
         session = _make_session()
         event = _make_event()
 
-        reloaded = _make_session(last_update_time=300.0)
+        reloaded = _make_session(last_update_time=300.0, marker="fresh-marker")
 
         with (
             patch(
@@ -188,12 +239,12 @@ class TestRetryingAppendEvent:
         assert session.last_update_time == 100.0
 
     async def test_modified_in_storage_message_triggers_retry(self, service):
-        """The newer ADK error message variant also triggers retry."""
+        """The ADK 1.28+ error message variant also triggers retry."""
         session = _make_session()
         event = _make_event()
         expected = MagicMock()
 
-        reloaded = _make_session(last_update_time=200.0)
+        reloaded = _make_session(last_update_time=200.0, marker="refreshed-marker")
 
         with (
             patch(
@@ -216,3 +267,41 @@ class TestRetryingAppendEvent:
             result = await service.append_event(session, event)
 
         assert result is expected
+        assert session._storage_update_marker == "refreshed-marker"
+
+    async def test_events_and_state_synced_on_reload(self, service):
+        """Verify that events and state are synced from reloaded session."""
+        session = _make_session(
+            last_update_time=100.0,
+            marker="old",
+            events=["e1"],
+            state={"k": "v1"},
+        )
+        event = _make_event()
+        expected = MagicMock()
+
+        reloaded = _make_session(
+            last_update_time=200.0,
+            marker="new",
+            events=["e1", "e2", "e3"],
+            state={"k": "v2"},
+        )
+
+        with (
+            patch(
+                "google.adk.sessions.DatabaseSessionService.append_event",
+                new_callable=AsyncMock,
+                side_effect=[ValueError("modified in storage"), expected],
+            ),
+            patch.object(
+                service,
+                "get_session",
+                new_callable=AsyncMock,
+                return_value=reloaded,
+            ),
+        ):
+            result = await service.append_event(session, event)
+
+        assert result is expected
+        assert session.events == ["e1", "e2", "e3"]
+        assert session.state == {"k": "v2"}
