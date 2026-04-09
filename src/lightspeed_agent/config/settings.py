@@ -39,6 +39,36 @@ class Settings(BaseSettings):
         default="gemini-2.5-flash",
         description="Gemini model to use",
     )
+    gemini_http_retry_attempts: int = Field(
+        default=5,
+        ge=1,
+        description=(
+            "Max HTTP attempts per Gemini call (including the first request). "
+            "Set to 1 to disable SDK retries. Matches google-genai default (5)."
+        ),
+    )
+    gemini_http_retry_initial_delay: float = Field(
+        default=1.0,
+        gt=0,
+        description=(
+            "Initial backoff delay in seconds before the first retry (exponential backoff)."
+        ),
+    )
+    gemini_http_retry_max_delay: float = Field(
+        default=60.0,
+        gt=0,
+        description="Maximum delay in seconds between retries.",
+    )
+    gemini_http_retry_exp_base: float = Field(
+        default=2.0,
+        gt=0,
+        description="Multiplier for exponential backoff between attempts.",
+    )
+    gemini_http_retry_jitter: float = Field(
+        default=1.0,
+        ge=0,
+        description="Jitter factor for backoff (reduces synchronized retries).",
+    )
 
     # Red Hat SSO Configuration
     red_hat_sso_issuer: str = Field(

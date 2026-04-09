@@ -155,6 +155,7 @@ All configuration is via environment variables, managed through Pydantic setting
 **LLM / Google Cloud:**
 - `GOOGLE_API_KEY` or `GOOGLE_CLOUD_PROJECT` + `GOOGLE_GENAI_USE_VERTEXAI=TRUE` (LLM access)
 - `GEMINI_MODEL` (model selection, default: `gemini-2.5-flash`)
+- Optional Gemini HTTP retries (Google Gen AI SDK exponential backoff + jitter): `GEMINI_HTTP_RETRY_ATTEMPTS`, `GEMINI_HTTP_RETRY_INITIAL_DELAY`, `GEMINI_HTTP_RETRY_MAX_DELAY`, `GEMINI_HTTP_RETRY_EXP_BASE`, `GEMINI_HTTP_RETRY_JITTER` (see `docs/configuration.md`)
 
 **Database:**
 - `DATABASE_URL` / `SESSION_DATABASE_URL` (PostgreSQL or SQLite)
