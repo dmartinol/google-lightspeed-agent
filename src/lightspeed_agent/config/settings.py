@@ -211,6 +211,15 @@ class Settings(BaseSettings):
         "'basic' logs tool names and token counts. "
         "'detailed' also logs tool arguments and truncated results.",
     )
+    tool_result_max_chars: int = Field(
+        default=51200,
+        ge=0,
+        description=(
+            "Maximum character length for MCP tool results sent to the LLM. "
+            "Oversized results are replaced with a message advising the user "
+            "to narrow down or paginate. Set to 0 to disable."
+        ),
+    )
 
     # DCR (Dynamic Client Registration) Configuration
     dcr_enabled: bool = Field(

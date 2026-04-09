@@ -247,7 +247,7 @@ See [Usage Tracking and Metering](metering.md) for details on the plugin system 
 | `LOG_LEVEL` | `INFO` | Log level: DEBUG, INFO, WARNING, ERROR |
 | `LOG_FORMAT` | `json` | Log format: `json` or `text` |
 | `AGENT_LOGGING_DETAIL` | `basic` | Agent execution logging detail: `basic` or `detailed` |
-| `TOOL_RESULT_MAX_CHARS` | `50000` | Max character length for MCP tool results sent to the LLM. Oversized results are replaced with a message advising the user to narrow down or paginate. Set to `0` to disable. |
+| `TOOL_RESULT_MAX_CHARS` | `51200` | Max character length for MCP tool results sent to the LLM. Oversized results are replaced with a message advising the user to narrow down or paginate. Set to `0` to disable. |
 
 **Example:**
 
@@ -256,6 +256,27 @@ LOG_LEVEL=DEBUG
 LOG_FORMAT=text  # Human-readable for development
 AGENT_LOGGING_DETAIL=detailed  # Include tool args/results in logs
 ```
+
+#### MCP Output Size Guard
+
+MCP tools can return very large responses (e.g., listing all advisories or inventory systems). These responses are passed in full to the LLM as input context, which can inflate token counts significantly (270K+ tokens observed) and trigger Vertex AI token-per-minute (TPM) rate limits (HTTP 429 `RESOURCE_EXHAUSTED`).
+
+The `TOOL_RESULT_MAX_CHARS` setting controls a size guard that detects oversized tool results and replaces them with an actionable message telling the LLM to guide the user toward narrowing down their query or using pagination.
+
+```bash
+# Default: 50K characters (conservative, works within standard TPM quotas)
+TOOL_RESULT_MAX_CHARS=51200
+
+# Allow larger results if you have higher TPM quotas
+TOOL_RESULT_MAX_CHARS=100000
+
+# Disable the guard entirely (not recommended — may cause 429 errors)
+TOOL_RESULT_MAX_CHARS=0
+```
+
+When a result exceeds the limit, the LLM receives an error message instead of the raw data, allowing it to inform the user and suggest alternatives. Monitor `Tool result too large` warning logs to track which tools trigger the guard.
+
+**Choosing the right limit:** The optimal value depends on the model's context window and expected session length. Each tool result, along with all previous messages and tool results in the conversation, counts toward the model's input token budget. Longer sessions accumulate more context, leaving less room for individual tool results. A conservative limit (the default) works well for multi-turn sessions where context builds up over time. If your sessions are typically short (single-turn queries), you can increase the limit to allow richer results without risk of hitting context or TPM limits.
 
 #### Audit Logging
 

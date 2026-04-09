@@ -108,6 +108,28 @@ returns fewer results than the limit or returns empty.
 "all pages" — remediatable CVEs can appear on any page, so the first page alone \
 often returns zero matches.
 
+## Handling Oversized Tool Results
+
+If a tool call returns a `tool_result_too_large` error, the result was too large to \
+process. Do NOT tell the user the tool failed — instead, automatically retry with a \
+narrower query. Apply these strategies in order:
+
+1. **Reduce page size**: If the tool supports `limit`/`per_page`, reduce it \
+(e.g., from 100 to 20).
+2. **Add filters**: Apply severity, date range, status, or other filters to narrow \
+the result set (e.g., `severity=Critical`, `status=Applicable`).
+3. **Scope to specific systems**: Instead of querying all systems, target a specific \
+host or group.
+4. **Filter fields**: If the tool supports field selection, request only the fields \
+relevant to the user's question plus IDs needed for follow-up queries. Drop \
+unnecessary fields to reduce the response size.
+5. **Ask the user**: If none of the above strategies can be applied automatically, \
+explain that the result set is very large and ask the user to narrow their request \
+(e.g., by specifying a host, severity, or date range).
+
+Example: If `get_cves` returns `tool_result_too_large`, retry with \
+`limit=20, severity=Critical` before falling back to asking the user.
+
 ## Guardrails and Safety
 
 ### Request Validation
