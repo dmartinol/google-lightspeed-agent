@@ -97,8 +97,13 @@ Both are created automatically by `setup.sh`. The Pub/Sub Invoker SA is only cre
 
 ```bash
 export GOOGLE_CLOUD_PROJECT="your-project-id"
-export GOOGLE_CLOUD_LOCATION="us-central1"
+export GOOGLE_CLOUD_LOCATION="us-central1"  # Cloud Run deployment region
 export SERVICE_NAME="lightspeed-agent"
+
+# Vertex AI model location (use "global" for pay-as-you-go access).
+# This is separate from GOOGLE_CLOUD_LOCATION, which sets the Cloud Run
+# deployment region. Defaults to "global" if not set.
+# export VERTEXAI_LOCATION="global"
 
 # Optional: use a different name for the GCP service account
 # export SERVICE_ACCOUNT_NAME="my-custom-sa"
@@ -149,7 +154,8 @@ The setup script enables required APIs, creates service accounts (runtime + Pub/
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `GOOGLE_CLOUD_PROJECT` | (required) | GCP project ID |
-| `GOOGLE_CLOUD_LOCATION` | `us-central1` | GCP region |
+| `GOOGLE_CLOUD_LOCATION` | `us-central1` | Cloud Run deployment region |
+| `VERTEXAI_LOCATION` | `global` | Vertex AI model location (use `global` for pay-as-you-go) |
 | `SERVICE_NAME` | `lightspeed-agent` | Cloud Run service name |
 | `SERVICE_ACCOUNT_NAME` | `${SERVICE_NAME}` | GCP service account name (allows a different name than the Cloud Run service) |
 | `HANDLER_SERVICE_NAME` | `marketplace-handler` | Marketplace handler Cloud Run service name |
@@ -420,6 +426,7 @@ deployment without the script, substitute all `${...}` variables in the YAML bef
 ```bash
 sed -e "s|\${PROJECT_ID}|$GOOGLE_CLOUD_PROJECT|g" \
     -e "s|\${REGION}|$GOOGLE_CLOUD_LOCATION|g" \
+    -e "s|\${VERTEXAI_LOCATION}|${VERTEXAI_LOCATION:-global}|g" \
     -e "s|\${DB_INSTANCE_NAME}|${DB_INSTANCE_NAME:-lightspeed-agent-db}|g" \
     -e "s|\${VPC_CONNECTOR_NAME}|${VPC_CONNECTOR_NAME:-lightspeed-redis-conn}|g" \
     -e "s|\${SERVICE_NAME}|${SERVICE_NAME:-lightspeed-agent}|g" \
