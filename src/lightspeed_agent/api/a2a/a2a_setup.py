@@ -23,6 +23,7 @@ from google.adk.sessions import InMemorySessionService
 
 from lightspeed_agent.api.a2a.agent_card import build_agent_card
 from lightspeed_agent.api.a2a.logging_plugin import AgentLoggingPlugin
+from lightspeed_agent.api.a2a.mcp_output_size_guard_plugin import MCPOutputSizeGuardPlugin
 from lightspeed_agent.api.a2a.usage_plugin import UsageTrackingPlugin
 from lightspeed_agent.config import get_settings
 from lightspeed_agent.core import create_agent
@@ -119,7 +120,7 @@ def _create_runner() -> Runner:
     app = App(
         name=settings.agent_name,
         root_agent=agent,
-        plugins=[AgentLoggingPlugin(), UsageTrackingPlugin()],
+        plugins=[AgentLoggingPlugin(), UsageTrackingPlugin(), MCPOutputSizeGuardPlugin()],
     )
 
     # Use database-backed session service for production
