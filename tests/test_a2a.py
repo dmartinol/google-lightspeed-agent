@@ -360,7 +360,7 @@ class TestGetSessionService:
                 return_value=mock_settings,
             ),
             patch(
-                "google.adk.sessions.DatabaseSessionService",
+                "lightspeed_agent.api.a2a.session_service.RetryingDatabaseSessionService",
                 mock_db_session,
             ),
             caplog.at_level(logging.INFO),
@@ -386,7 +386,7 @@ class TestGetSessionService:
                 return_value=mock_settings,
             ),
             patch(
-                "google.adk.sessions.DatabaseSessionService",
+                "lightspeed_agent.api.a2a.session_service.RetryingDatabaseSessionService",
                 mock_db_session,
             ),
             caplog.at_level(logging.INFO),
@@ -414,14 +414,14 @@ class TestGetSessionService:
         with (
             pytest.raises(
                 RuntimeError,
-                match=r"Failed to initialize DatabaseSessionService",
+                match=r"Failed to initialize RetryingDatabaseSessionService",
             ) as exc_info,
             patch(
                 "lightspeed_agent.api.a2a.a2a_setup.get_settings",
                 return_value=mock_settings,
             ),
             patch(
-                "google.adk.sessions.DatabaseSessionService",
+                "lightspeed_agent.api.a2a.session_service.RetryingDatabaseSessionService",
                 side_effect=RuntimeError(error_msg),
             ),
         ):
@@ -475,7 +475,7 @@ class TestGetSessionService:
         assert "InMemorySessionService" in caplog.text
 
     def test_database_backend_returns_database_service(self):
-        """Test that SESSION_BACKEND=database returns DatabaseSessionService."""
+        """Test that SESSION_BACKEND=database returns RetryingDatabaseSessionService."""
         mock_settings = MagicMock()
         mock_settings.session_backend = "database"
         mock_settings.session_database_url = (
@@ -490,7 +490,7 @@ class TestGetSessionService:
                 return_value=mock_settings,
             ),
             patch(
-                "google.adk.sessions.DatabaseSessionService",
+                "lightspeed_agent.api.a2a.session_service.RetryingDatabaseSessionService",
                 mock_db_session,
             ),
         ):

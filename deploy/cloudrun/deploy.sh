@@ -60,6 +60,7 @@ log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
 PROJECT_ID="${GOOGLE_CLOUD_PROJECT:-}"
 REGION="${GOOGLE_CLOUD_LOCATION:-us-central1}"
+VERTEXAI_LOCATION="${VERTEXAI_LOCATION:-global}"
 SERVICE_NAME="${SERVICE_NAME:-lightspeed-agent}"
 SERVICE_ACCOUNT_NAME="${SERVICE_ACCOUNT_NAME:-${SERVICE_NAME}}"
 HANDLER_SERVICE_NAME="${HANDLER_SERVICE_NAME:-marketplace-handler}"
@@ -198,6 +199,7 @@ deploy_agent() {
         -e "s|\${MCP_IMAGE}|${MCP_IMAGE}|g" \
         -e "s|\${PROJECT_ID}|${PROJECT_ID}|g" \
         -e "s|\${REGION}|${REGION}|g" \
+        -e "s|\${VERTEXAI_LOCATION}|${VERTEXAI_LOCATION}|g" \
         -e "s|\${SERVICE_NAME}|${SERVICE_NAME}|g" \
         -e "s|\${SERVICE_ACCOUNT_NAME}|${SERVICE_ACCOUNT_NAME}|g" \
         -e "s|\${DB_INSTANCE_NAME}|${DB_INSTANCE_NAME}|g" \

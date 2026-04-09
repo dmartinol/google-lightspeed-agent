@@ -32,8 +32,8 @@ class Settings(BaseSettings):
         description="Google Cloud project ID for Vertex AI",
     )
     google_cloud_location: str = Field(
-        default="us-central1",
-        description="Google Cloud location for Vertex AI",
+        default="global",
+        description="Google Cloud location for Vertex AI (use 'global' for pay-as-you-go)",
     )
     gemini_model: str = Field(
         default="gemini-2.5-flash",
