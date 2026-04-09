@@ -13,7 +13,7 @@ Configuration is managed through environment variables. Copy `.env.example` to `
 | `GOOGLE_GENAI_USE_VERTEXAI` | `FALSE` | Use Vertex AI instead of Google AI Studio |
 | `GOOGLE_API_KEY` | - | Google AI Studio API key (required if not using Vertex AI) |
 | `GOOGLE_CLOUD_PROJECT` | - | GCP project ID (required for Vertex AI) |
-| `GOOGLE_CLOUD_LOCATION` | `us-central1` | GCP region for Vertex AI |
+| `GOOGLE_CLOUD_LOCATION` | `global` | Vertex AI model location (use `global` for pay-as-you-go) |
 | `GEMINI_MODEL` | `gemini-2.5-flash` | Gemini model to use |
 | `GEMINI_HTTP_RETRY_ATTEMPTS` | `5` | Max HTTP attempts per model call (including the first). Use `1` to disable SDK retries. Aligns with [google-genai defaults](https://cloud.google.com/vertex-ai/generative-ai/docs/retry-strategy). |
 | `GEMINI_HTTP_RETRY_INITIAL_DELAY` | `1.0` | Initial backoff delay in seconds (exponential backoff with jitter). |
@@ -35,7 +35,7 @@ GOOGLE_API_KEY=your-api-key
 ```bash
 GOOGLE_GENAI_USE_VERTEXAI=TRUE
 GOOGLE_CLOUD_PROJECT=your-project-id
-GOOGLE_CLOUD_LOCATION=us-central1
+GOOGLE_CLOUD_LOCATION=global
 ```
 
 ### Red Hat SSO / OAuth 2.0
@@ -247,6 +247,7 @@ See [Usage Tracking and Metering](metering.md) for details on the plugin system 
 | `LOG_LEVEL` | `INFO` | Log level: DEBUG, INFO, WARNING, ERROR |
 | `LOG_FORMAT` | `json` | Log format: `json` or `text` |
 | `AGENT_LOGGING_DETAIL` | `basic` | Agent execution logging detail: `basic` or `detailed` |
+| `TOOL_RESULT_MAX_CHARS` | `50000` | Max character length for MCP tool results sent to the LLM. Oversized results are replaced with a message advising the user to narrow down or paginate. Set to `0` to disable. |
 
 **Example:**
 
