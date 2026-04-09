@@ -4,7 +4,7 @@
 # =============================================================================
 # Build Stage
 # =============================================================================
-FROM registry.access.redhat.com/ubi9/python-312-minimal:latest as builder
+FROM registry.access.redhat.com/ubi10/python-312-minimal:latest as builder
 
 WORKDIR /opt/app-root/src
 
@@ -16,7 +16,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # =============================================================================
 # Production Stage
 # =============================================================================
-FROM registry.access.redhat.com/ubi9/python-312-minimal:latest as production
+FROM registry.access.redhat.com/ubi10/python-312-minimal:latest as production
 
 # Labels for container metadata
 LABEL org.opencontainers.image.title="Red Hat Lightspeed Agent for Google Cloud"

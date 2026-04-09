@@ -308,7 +308,7 @@ podman pod inspect lightspeed-agent-pod
 podman login registry.access.redhat.com
 
 # Pull image manually
-podman pull registry.access.redhat.com/ubi9/python-312-minimal:latest
+podman pull registry.access.redhat.com/ubi10/python-312-minimal:latest
 ```
 
 ### Volume Mount Issues
