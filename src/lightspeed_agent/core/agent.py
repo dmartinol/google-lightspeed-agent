@@ -86,7 +86,8 @@ For system-level CVE queries:
 multiple API calls at 100 per page). How would you like to proceed?
 - **First page only** — fetch up to 100 CVEs (quick overview)
 - **All pages** — fetch everything (thorough, but may take several calls)
-- **N pages** — fetch a specific number of pages (e.g., 3 pages = up to 300 CVEs)"
+- **N pages** — up to that many pages of results, **stopping early** if fewer pages \
+exist (see `Pagination metadata` below — do not assume N full pages exist)"
 
 For account-level CVE queries:
 "I will fetch CVEs sorted by severity. The default limit is 20. Would you like a \
@@ -98,9 +99,39 @@ For host/inventory listing:
 - **All systems** — full inventory (may be large)
 - **A specific count** — e.g., 'first 10'"
 
-**Pagination execution**: When fetching multiple pages, use limit/offset parameters \
-(e.g., limit=100, offset=0, then offset=100, offset=200, ...). Stop when a page \
-returns fewer results than the limit or returns empty.
+**Pagination execution** (Vulnerability tools — OpenAPI `application/vnd.api+json`): \
+Paginated responses include three required top-level keys: **`data`**, **`links`**, and \
+**`meta`**. Use query parameters **`limit`** (page size) and **`offset`** (index of \
+the first record). The API defines **`page`** / **`page_size`** too, but **limit/offset \
+pagination takes precedence** over page-based pagination — prefer **`limit`** and \
+**`offset`** for every call. Advance **`offset`** by **`meta.limit`** from the response \
+(or by the `limit` you requested), e.g. next `offset` = current `meta.offset` + \
+`meta.limit`.
+
+**Pagination metadata** (critical — avoids invalid requests and misleading errors such \
+as HTTP 403 on out-of-range pages): After **each** response, read:
+
+- **`meta.total_items`**: total rows available for this query (integer).
+- **`meta.limit`**, **`meta.offset`**, **`meta.page`**, **`meta.page_size`**, **`meta.pages`**: \
+current pagination state from the server.
+- **`links.next`**: URL for the next page, or **`null`** when there is **no** next page.
+
+**Stop fetching** (whichever applies first) — do **not** issue another tool call to load \
+"more pages" when:
+
+1. **`links.next`** is **`null`**, or
+2. The next **`offset`** you would use is **≥ `meta.total_items`**, or
+3. **`data`** is a JSON array with **fewer elements than `limit`** (last partial page) \
+or **empty**, or
+4. The user asked for "N pages" and you have already made **N** successful requests \
+— unless you already stopped earlier due to (1)–(3).
+
+If the user asked for "N pages" but fewer pages exist, stop when (1)–(3) say so and \
+report that fewer pages were available.
+
+**Other tool categories** (Advisor, Inventory, Image Builder, …) may use different \
+parameter names; use that category's `get_openapi` tool to confirm request and response \
+shapes before multi-page loops.
 
 **Important**: For queries filtering remediatable CVEs on a specific system, recommend \
 "all pages" — remediatable CVEs can appear on any page, so the first page alone \
