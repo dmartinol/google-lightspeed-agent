@@ -2,6 +2,38 @@
 
 Deploy the Red Hat Lightspeed Agent for Google Cloud to Google Cloud Run for production use.
 
+## Table of Contents
+
+- [Architecture](#architecture)
+- [Service Accounts](#service-accounts)
+- [Prerequisites](#prerequisites)
+- [Quick Start](#quick-start)
+  - [1. Set Environment Variables](#1-set-environment-variables)
+  - [2. Run Setup Script](#2-run-setup-script)
+  - [3. Set Up Cloud SQL Database](#3-set-up-cloud-sql-database)
+  - [4. Redis Setup for Rate Limiting](#4-redis-setup-for-rate-limiting)
+  - [5. Configure Secrets](#5-configure-secrets)
+  - [6. Copy MCP Image to GCR](#6-copy-mcp-image-to-gcr)
+  - [7. Deploy](#7-deploy)
+- [Service Configuration](#service-configuration)
+  - [Agent Container](#agent-container)
+  - [Rate Limiting (Redis)](#rate-limiting-redis)
+  - [MCP Output Size Guard](#mcp-output-size-guard)
+  - [MCP Server Sidecar](#mcp-server-sidecar)
+  - [Scaling](#scaling)
+- [How the MCP Server Works](#how-the-mcp-server-works)
+- [Authentication](#authentication)
+- [Endpoints](#endpoints)
+- [Testing the Deployment](#testing-the-deployment)
+- [Database Architecture](#database-architecture)
+- [Custom Domain](#custom-domain)
+- [Testing the Agent](#testing-the-agent)
+- [Testing DCR on Cloud Run](#testing-dcr-on-cloud-run)
+- [Audit Logging](#audit-logging)
+- [Monitoring](#monitoring)
+- [Troubleshooting](#troubleshooting)
+- [Cleanup / Teardown](#cleanup--teardown)
+
 ## Architecture
 
 The deployment consists of **two separate Cloud Run services** plus **Cloud Memorystore for Redis** (for rate limiting):
@@ -459,6 +491,67 @@ The agent uses Cloud Memorystore for Redis for distributed rate limiting. Requir
 | `RATE_LIMIT_REQUESTS_PER_HOUR` | Env | Max requests per hour per principal |
 
 The service uses a VPC connector to reach the Redis instance. Set `VPC_CONNECTOR_NAME` (default: `lightspeed-redis-conn`) when deploying. See [Rate Limiting — Testing](../../docs/rate-limiting.md#testing-rate-limiting) for how to validate rate limiting.
+
+### MCP Output Size Guard
+
+MCP tools can return very large responses (e.g., listing all advisories or inventory systems),
+which inflate the LLM input context and may trigger Vertex AI token-per-minute (TPM) rate limits
+(HTTP 429 `RESOURCE_EXHAUSTED`).
+
+The agent includes an **MCP output size guard** that detects oversized tool results and replaces
+them with an actionable message. Instead of sending the full payload to the LLM, the agent tells
+the model the result was too large and asks it to guide the user toward narrowing down their query
+or using pagination.
+
+**Configuration:**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `TOOL_RESULT_MAX_CHARS` | `51200` | Maximum character length for MCP tool results. Results exceeding this are replaced with guidance. Set to `0` to disable. |
+
+**To adjust the limit on Cloud Run:**
+
+```bash
+# Allow larger results (e.g., 100K characters)
+gcloud run services update lightspeed-agent \
+  --region=$GOOGLE_CLOUD_LOCATION \
+  --project=$GOOGLE_CLOUD_PROJECT \
+  --set-env-vars TOOL_RESULT_MAX_CHARS=100000
+
+# Disable the guard entirely (not recommended — may cause 429 errors)
+gcloud run services update lightspeed-agent \
+  --region=$GOOGLE_CLOUD_LOCATION \
+  --project=$GOOGLE_CLOUD_PROJECT \
+  --set-env-vars TOOL_RESULT_MAX_CHARS=0
+```
+
+**How it works:**
+
+1. An MCP tool executes and returns a result
+2. The `MCPOutputSizeGuardPlugin` serializes the result and checks its character length
+3. If the result exceeds `TOOL_RESULT_MAX_CHARS`, it is replaced with:
+   ```json
+   {
+     "error": "tool_result_too_large",
+     "message": "The tool 'get_advisories' returned a result that is too large to process (270,000 characters, limit is 51,200). Please ask the user to narrow down their query or use pagination/filtering parameters to reduce the result size.",
+     "original_size_chars": 270000,
+     "limit_chars": 51200
+   }
+   ```
+4. The LLM receives this message and can inform the user to refine their request
+
+**Tuning tips:**
+
+- **51,200 characters** (default, 50 KiB) is a conservative limit that keeps input tokens well within
+  Vertex AI TPM quotas for `gemini-2.5-flash`
+- If you have higher TPM quotas, increase the limit to allow richer responses
+- The optimal limit depends on the model's context window and expected session length — longer
+  multi-turn sessions accumulate more context, leaving less room for individual tool results.
+  Short single-turn sessions can tolerate a higher limit.
+- Monitor the `Tool result too large` warning logs to see which tools trigger the guard
+  and how often
+
+See [Configuration — MCP Output Size Guard](../../docs/configuration.md#mcp-output-size-guard) for more details.
 
 ### MCP Server Sidecar
 
