@@ -12,6 +12,7 @@ Deploy the Red Hat Lightspeed Agent for Google Cloud to Google Cloud Run for pro
   - [2. Run Setup Script](#2-run-setup-script)
   - [3. Set Up Cloud SQL Database](#3-set-up-cloud-sql-database)
   - [4. Redis Setup for Rate Limiting](#4-redis-setup-for-rate-limiting)
+  - [VPC flow logs (SEC-NET-REQ-5) and Splunk export](#vpc-flow-logs-sec-net-req-5-and-splunk-export)
   - [5. Configure Secrets](#5-configure-secrets)
   - [6. Copy MCP Image to GCR](#6-copy-mcp-image-to-gcr)
   - [7. Deploy](#7-deploy)
@@ -122,6 +123,12 @@ Both are created automatically by `setup.sh`. The Pub/Sub Invoker SA is only cre
   - Cloud Build Editor
   - Secret Manager Admin
   - Service Account Admin
+
+### Network prerequisites
+
+These procedures assume a **VPC network you can use** (often `default`, or a custom network your organization provides). `setup.sh` does **not** create a VPC, subnets, or compliance controls.
+
+**VPC flow logs** (per-subnet) and **export to Splunk** (Pub/Sub topic + log sink) are **not** created by `setup.sh` unless you run them separately. For enterprise monitoring (SEC-NET-REQ-5) and optional automation, see [VPC flow logs (SEC-NET-REQ-5) and Splunk export](#vpc-flow-logs-sec-net-req-5-and-splunk-export) and [VPC flow logs](../../docs/vpc-flow-logs.md).
 
 ## Quick Start
 
@@ -298,6 +305,32 @@ export VPC_CONNECTOR_NAME="lightspeed-redis-conn"
 ```
 
 See [Connect to Redis from Cloud Run](https://cloud.google.com/run/docs/integrate/redis-memorystore) for more details.
+
+### VPC flow logs (SEC-NET-REQ-5) and Splunk export
+
+Optional **project-level** setup for **VPC Flow Logs** export to a **dedicated** Pub/Sub topic (for Splunk / Dataflow / add-on). This is **separate** from the marketplace `PUBSUB_TOPIC` used for procurement events.
+
+1. Enable flow logs on each subnet that carries workload traffic (connector, Memorystore, Cloud SQL private IP, etc.); see [docs/vpc-flow-logs.md](../../docs/vpc-flow-logs.md).
+2. File internal **ITML / Splunk GCP Log Onboarding** with your topic name after step 3.
+3. Run the helper script (opt-in):
+
+```bash
+export GOOGLE_CLOUD_PROJECT="your-project-id"
+export ENABLE_VPC_FLOW_LOG_EXPORT=true
+# Optional:
+# export VPC_FLOW_LOGS_TOPIC="vpc-flow-logs-export"
+# export VPC_FLOW_LOG_SINK_NAME="vpc-flow-logs-export-sink"
+
+./deploy/cloudrun/vpc-flow-log-export.sh
+```
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ENABLE_VPC_FLOW_LOG_EXPORT` | (must be `true`) | Safety gate; script exits if not set to `true` |
+| `VPC_FLOW_LOGS_TOPIC` | `vpc-flow-logs-export` | Pub/Sub topic id in the same project |
+| `VPC_FLOW_LOG_SINK_NAME` | `${VPC_FLOW_LOGS_TOPIC}-sink` | Cloud Logging sink name |
+
+To remove the sink and topic during teardown (for example in dev), set `CLEANUP_VPC_FLOW_LOG_EXPORT=true` when running [cleanup.sh](cleanup.sh). This deletes **subscriptions** on that topic in the project first, then the sink, then the topic.
 
 ### 5. Configure Secrets
 
@@ -1584,9 +1617,16 @@ To remove all resources created by the setup and deploy scripts:
 
 This will delete:
 - Cloud Run services (lightspeed-agent, marketplace-handler)
-- Pub/Sub topic and subscription
+- Pub/Sub topic and subscription (marketplace)
 - Secret Manager secrets
 - Service accounts (runtime + Pub/Sub invoker) and IAM bindings
+
+To also remove **VPC flow log export** resources created by [vpc-flow-log-export.sh](vpc-flow-log-export.sh) (subscriptions on that topic in this project, then the log sink, then the topic):
+
+```bash
+export CLEANUP_VPC_FLOW_LOG_EXPORT=true
+./deploy/cloudrun/cleanup.sh
+```
 
 Use `--force` to skip the confirmation prompt:
 

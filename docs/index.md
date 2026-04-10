@@ -36,6 +36,7 @@ The Lightspeed Agent is an A2A-ready (Agent-to-Agent) service that provides AI-p
 
 - [Metering](metering.md) - Usage tracking and billing metrics
 - [Rate Limiting](rate-limiting.md) - Request throttling and quotas
+- [VPC flow logs and Splunk export](vpc-flow-logs.md) - SEC-NET-REQ-5, subnet flow logs, Pub/Sub export (optional)
 - [Troubleshooting](troubleshooting.md) - Common issues and solutions
 
 ## Quick Links

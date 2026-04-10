@@ -5,7 +5,8 @@
 #
 # This script removes all GCP resources created by setup.sh and deploy.sh:
 # - Cloud Run services
-# - Pub/Sub topic and subscription
+# - Pub/Sub topic and subscription (marketplace)
+# - Optional: VPC flow log export sink and topic (when CLEANUP_VPC_FLOW_LOG_EXPORT=true)
 # - Secrets in Secret Manager
 # - Service accounts (runtime + Pub/Sub invoker) and IAM bindings
 #
@@ -53,6 +54,13 @@ PUBSUB_INVOKER_SA="${PUBSUB_INVOKER_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
 PUBSUB_TOPIC="${PUBSUB_TOPIC:-marketplace-entitlements}"
 PUBSUB_SUBSCRIPTION="${PUBSUB_SUBSCRIPTION:-${PUBSUB_TOPIC}-sub}"
 
+# VPC flow log export (must match vpc-flow-log-export.sh defaults)
+VPC_FLOW_LOGS_TOPIC="${VPC_FLOW_LOGS_TOPIC:-vpc-flow-logs-export}"
+if [[ -z "${VPC_FLOW_LOG_SINK_NAME:-}" ]]; then
+    VPC_FLOW_LOG_SINK_NAME="${VPC_FLOW_LOGS_TOPIC}-sink"
+fi
+CLEANUP_VPC_FLOW_LOG_EXPORT="${CLEANUP_VPC_FLOW_LOG_EXPORT:-false}"
+
 # Parse arguments
 FORCE=false
 
@@ -82,6 +90,9 @@ echo ""
 echo "  - Cloud Run services: $SERVICE_NAME, $HANDLER_SERVICE_NAME"
 echo "  - Pub/Sub topic: $PUBSUB_TOPIC"
 echo "  - Pub/Sub subscription: $PUBSUB_SUBSCRIPTION"
+if [[ "$CLEANUP_VPC_FLOW_LOG_EXPORT" == "true" ]]; then
+    echo "  - VPC flow log export: Logging sink '$VPC_FLOW_LOG_SINK_NAME', topic '$VPC_FLOW_LOGS_TOPIC' (and its subscriptions in this project)"
+fi
 echo "  - Secrets: redhat-sso-client-id, redhat-sso-client-secret, database-url,"
 echo "             session-database-url, gma-client-id, gma-client-secret, dcr-encryption-key,"
 echo "             rate-limit-redis-url"
@@ -154,6 +165,47 @@ elif gcloud pubsub topics describe "$PUBSUB_TOPIC" --project="$PROJECT_ID" &>/de
     log_info "Pub/Sub topic '$PUBSUB_TOPIC' deleted"
 else
     log_info "Pub/Sub topic '$PUBSUB_TOPIC' does not exist, skipping"
+fi
+
+# =============================================================================
+# Step 2b: VPC flow log export (optional)
+# =============================================================================
+if [[ "$CLEANUP_VPC_FLOW_LOG_EXPORT" == "true" ]]; then
+    log_info "Cleaning up VPC flow log export resources..."
+
+    TOPIC_FULL="projects/${PROJECT_ID}/topics/${VPC_FLOW_LOGS_TOPIC}"
+    SUB_FILTER="topic:${TOPIC_FULL}"
+
+    while IFS= read -r sub_name; do
+        [[ -z "$sub_name" ]] && continue
+        gcloud pubsub subscriptions delete "$sub_name" \
+            --project="$PROJECT_ID" \
+            --quiet
+        log_info "  Deleted subscription: $sub_name"
+    done < <(gcloud pubsub subscriptions list \
+        --project="$PROJECT_ID" \
+        --filter="$SUB_FILTER" \
+        --format="value(name)" 2>/dev/null || true)
+
+    if gcloud logging sinks describe "$VPC_FLOW_LOG_SINK_NAME" --project="$PROJECT_ID" &>/dev/null; then
+        gcloud logging sinks delete "$VPC_FLOW_LOG_SINK_NAME" \
+            --project="$PROJECT_ID" \
+            --quiet
+        log_info "Logging sink '$VPC_FLOW_LOG_SINK_NAME' deleted"
+    else
+        log_info "Logging sink '$VPC_FLOW_LOG_SINK_NAME' does not exist, skipping"
+    fi
+
+    if gcloud pubsub topics describe "$VPC_FLOW_LOGS_TOPIC" --project="$PROJECT_ID" &>/dev/null; then
+        gcloud pubsub topics delete "$VPC_FLOW_LOGS_TOPIC" \
+            --project="$PROJECT_ID" \
+            --quiet
+        log_info "Pub/Sub topic '$VPC_FLOW_LOGS_TOPIC' deleted"
+    else
+        log_info "Pub/Sub topic '$VPC_FLOW_LOGS_TOPIC' does not exist, skipping"
+    fi
+else
+    log_info "Skipping VPC flow log export cleanup (set CLEANUP_VPC_FLOW_LOG_EXPORT=true to remove sink and topic)"
 fi
 
 # =============================================================================
@@ -265,7 +317,10 @@ log_info "=========================================="
 echo ""
 echo "The following resources have been removed:"
 echo "  - Cloud Run services ($SERVICE_NAME, $HANDLER_SERVICE_NAME)"
-echo "  - Pub/Sub topic and subscription"
+echo "  - Pub/Sub topic and subscription (marketplace)"
+if [[ "$CLEANUP_VPC_FLOW_LOG_EXPORT" == "true" ]]; then
+    echo "  - VPC flow log export sink ($VPC_FLOW_LOG_SINK_NAME) and topic ($VPC_FLOW_LOGS_TOPIC)"
+fi
 echo "  - Secret Manager secrets"
 echo "  - Service accounts (runtime + Pub/Sub invoker) and IAM bindings"
 echo ""

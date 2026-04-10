@@ -86,6 +86,8 @@ The system runs as two separate FastAPI services with separate concerns:
 
 2. **Marketplace Handler** (port 8001, `src/lightspeed_agent/marketplace/app.py`) — Always-on service for Google Cloud Marketplace Pub/Sub provisioning events and Dynamic Client Registration (DCR). Has a single hybrid `/dcr` endpoint that routes Pub/Sub messages vs DCR requests based on request content.
 
+Cloud Run `setup.sh` assumes a usable VPC (for example `default`) but does **not** enable VPC flow logs or Splunk-oriented log export. If policy requires SEC-NET-REQ-5–style network monitoring, follow `docs/vpc-flow-logs.md` and optionally run `deploy/cloudrun/vpc-flow-log-export.sh` with `ENABLE_VPC_FLOW_LOG_EXPORT=true`.
+
 ### Database Isolation
 
 Two separate PostgreSQL databases (security boundary):

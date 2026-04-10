@@ -372,6 +372,10 @@ Authentication is enforced at the **application layer** via OAuth middleware.
 - Rate limiting prevents abuse
 - Pub/Sub verification via message signature
 
+### Network observability (compliance)
+
+For enterprise deployments, **VPC Flow Logs** may be required for ingress/egress monitoring (for example SEC-NET-REQ-5). Flow logs are emitted to Cloud Logging; a **log router sink** can export matching entries to a **dedicated Pub/Sub topic** for Splunk (Dataflow template, Splunk Add-on for GCP, or an internal forwarder). That path is **separate** from application logs and from **Google Cloud Marketplace** Pub/Sub procurement events. See [VPC flow logs](vpc-flow-logs.md) and [Cloud Run deployment](../deploy/cloudrun/README.md#vpc-flow-logs-sec-net-req-5-and-splunk-export).
+
 ## Database Schema
 
 The system uses PostgreSQL for persistence. For production deployments, the marketplace database (shared by both services) is separate from the session database (agent only).
